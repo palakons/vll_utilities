@@ -1,145 +1,69 @@
-import datetime
-import re
+from shared_functions import *
 
-import matplotlib.pyplot as plt
-import numpy as np
-from numpy.core.fromnumeric import size
+tflops_list = {
+    "GPU-709743fc-7c2a-81ce-0c04-14d30db6edfe": 14.2,
+    "GPU-fc38f444-f7a5-342f-6afd-cdce4537670f": 14.2,
+    "GPU-8f87452d-8ca3-62f8-08fd-bbb639426bdf": 14.2,
+    "GPU-0ac1380f-e140-ee31-0b0f-2991a1191a27": 14.2,
+    "GPU-1d301f66-da89-6170-00bc-1448333501bf": 14.2,
+    "GPU-981c38b6-be76-33ce-b474-db9bf366adb0": 14.2,
+    "GPU-861da7f2-2a19-1a8d-710d-dbec979994bb": 14.2,
+    "GPU-bde6bafe-9a1e-9933-d874-cd8facace9f5": 14.2,
+    "GPU-d509e023-248e-370b-68c3-9091e17dac92": 14.2,
+    "GPU-696dc756-820c-bd63-c584-242cfeff4c53": 14.2,
+    "GPU-60655ed4-289a-3987-47dd-be8d29d11421": 14.2,
+    "GPU-bd632a6d-5642-46d8-3ca1-fd38320c46d7": 14.2,
+    "GPU-5389821d-af03-3611-1ce1-795cf59a8a77": 14.2,
+    "GPU-590da2d7-8e0d-3729-e4e0-8d41b3330c55": 14.2,
+    "GPU-ed7108de-30ea-1506-9785-e0cef62f2482": 14.2,
+    "GPU-f057c390-17c2-32f5-5a06-8ecfd571284d": 14.2,
+    "GPU-166f858e-40ae-0006-276a-d6dcdb23174f": 14.2,
+    "GPU-53ee9a56-de55-747b-97ba-8dfb0345308e": 14.2,
+    "GPU-1b1027c1-4493-50c6-847b-4bc6b8db7b4b": 14.2,
+    "GPU-d226a05e-6ebb-47b2-f886-cf9b0e4204bc": 14.2,
+    "GPU-d6427358-18de-7389-d749-9fee856a8a88": 14.2,
+    "GPU-8154f12a-19ae-7f7b-3da9-83434b9b95be": 14.2,
+    "GPU-5654b919-d9d4-61e6-bc55-da6d376dc6ed": 14.2,
+    "GPU-241b6cc9-84f7-288d-ecd6-86d8a8ec704b": 14.2,
+    "GPU-801d4dcb-b4ff-aecd-fa7c-065306e2d913": 14.2,
+    "GPU-c906383f-7e86-0651-2d27-9f6245448864": 14.2,
+    "GPU-fcc3eaff-2360-13a2-d63a-77e5df784724": 14.2,
+    "GPU-88ff1b5a-3107-2139-f12c-2ddad2b0eef8": 14.2,
+    "GPU-608582fa-dcfd-ec05-faaa-3a616f3addb3": 14.2,
+    "GPU-776d0b27-5f56-3752-7d5b-4dc8b8f703e1": 14.2,
+    "GPU-61a88860-d3a8-d820-1667-16e08d223618": 14.2,
+    "GPU-fa88bbf4-8215-2239-3cc8-4ca58971b85d": 14.2,
+    "GPU-5328c663-e065-ed74-b5d9-ffea9a574d7c": 14.2,
+    "GPU-85e88f14-c7ae-c9d8-73f5-f947feaba51d": 14.2,
+    "GPU-7e9a99c4-faee-e1cb-0225-87df6061afc3": 14.2,
+    "GPU-1b167847-7424-b181-a321-3923e4b75704": 14.2,
+    "GPU-610b3862-ebd7-42c3-5bab-55368ffe6392": 14.2,
+    "GPU-f1597fe1-10f1-5ff8-e239-15df54deb5c4": 14.2,
+    "GPU-1983e0ba-d893-c31a-36c1-0b044598b8c2": 14.2,
+    "GPU-2fedffb3-fbb1-c583-c741-7867812a88da": 14.2,
+    "GPU-8c244175-3223-5878-b832-e1cbaa97f8da": 14.2,
+    "GPU-da80facd-6867-80ef-da30-78e5b2a9968a": 14.2,
+    "GPU-f9533bed-feaa-f66e-aeb9-31bf9a032cc1": 14.2,
+    "GPU-521ff969-2665-0c95-d7ae-aae37e4c1b7e": 14.2,
+    "GPU-c0bc88af-5077-9fe7-c699-4ab041312954": 14.2,
+    "GPU-ab3e32cf-9c94-e85b-ff40-cb9a2b1eb725": 14.2,
+    "GPU-52861426-4537-abc1-0d13-53c27a144152": 36,
+    "GPU-81fa636f-e5f3-07c4-2462-f9a343ee662e": 36,
+}
 
-
-def plot_gpu_utilization(
-    time_steps,
-    gpu_util,  # shape (len(node_names) * n_gpu_per_node, len(time_steps))
-    n_gpu_per_node=4,
-    node_names=[f"v{i+1:02d}" for i in range(17)],
-    target_path=None,
-):
-
-    point_step = (max(time_steps) - min(time_steps)) / (len(time_steps) - 1)
-    n_node = len(node_names)
-
-    title = f"VLL Cluster GPU Utilization History: {min(time_steps)} to {max(time_steps)} UTC+0 time"
-
-    fig, axs = plt.subplots(n_node * n_gpu_per_node, sharex=True, figsize=(10, 10))
-    plt.xticks(rotation=15)
-    axs[0].set_title(title)
-    my_cmap = plt.get_cmap("RdYlGn_r")
-    rescale = lambda y: (y - 0) / (100 - 0)
-
-    for i, ax in enumerate(axs):
-        ax.grid(which="major", axis="x")
-
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_visible(False)
-        plt.setp(ax.get_yticklines(), visible=False)
-        plt.setp(ax.get_yticklabels(), visible=False)
-        if i < len(axs) - 1:
-            plt.setp(ax.get_xticklabels(), visible=False)
-        if (i + 1) % n_gpu_per_node != 0:
-            ax.spines["bottom"].set_visible(False)
-        else:
-            d = 0.88 - 0.107 - 0.0055
-            fig.text(
-                0.095,
-                1
-                - (i // n_gpu_per_node * d / n_node + 0.107 + 0.015 + d / (2 * n_node)),
-                node_names[i // n_gpu_per_node],
-                ha="center",
-                va="center",
-            )
-        # print(len(time_steps),len(gpu_util[i]))
-        ax.bar(
-            time_steps,
-            gpu_util[i],
-            width=point_step,
-            color=my_cmap(rescale(gpu_util[i])),
-        )
-
-    plt.subplots_adjust(hspace=0)
-    # plt.axis('tight')
-    plt.xlabel("time")
-    fig.text(0.05, 0.5, "GPU utilization", ha="center", va="center", rotation=90)
-    if target_path is not None:
-        fig.savefig(target_path)
-    return fig
-
-
-def process_util_string(line):
-    data = {}
-    pattern = r" \| "
-    mod_string = re.sub(pattern, "", line)
-    pattern = r","
-    mod_string = re.sub(pattern, "", mod_string)
-    pattern = r"[a-z_]+ {2}"
-    mod_string = re.sub(pattern, "", mod_string)
-    token = mod_string.split()
-    # print(token)
-    current_token = ""
-    for tag in token:
-        if tag[0] == "v":
-            current_token = tag
-        else:
-            if current_token not in data:
-                data[current_token] = [int(tag)]
-            else:
-                data[current_token].append(int(tag))
-    # print(data)
-    return data
-
-
-def pad_zero_util(gpu_util_list, n_gpu_per_node=4):
-    if len(gpu_util_list) < n_gpu_per_node:
-        return gpu_util_list + [0] * (n_gpu_per_node - len(gpu_util_list))
-    return gpu_util_list[:n_gpu_per_node]
-
-def combine_gpu_util(node_names, data, n_gpu_per_node):
-    result = []
-    for name in node_names:
-        result += pad_zero_util(data[name] if name in data else [], n_gpu_per_node)
-    return result
-
-
-def read_gpu_log(
-    input_file="/home2/palakons/track_cluster_usage.log",
-    n_gpu_per_node=4,
-):
-
-    t = []
-
-    data_nodes = set([])
-    data_list = []
-    f = open(input_file, "r")
-    for i, line in enumerate(f):
-        if i % 3 == 0:  # time
-            t.append(datetime.datetime.fromtimestamp(int(line)))
-        elif i % 3 == 1:  # gpu id
-            pass
-        else:
-            data = process_util_string(line)
-            # print(list(data.keys()))
-            data_nodes = data_nodes.union(set(data.keys()))
-            data_list.append(data)
-            # print(data.keys())
-    # return t,a[:32],b[:8]
-    data_nodes = list(data_nodes)
-    data_nodes.sort()
-    # print(data_nodes)
-    # print(data_list[0])
-    data_table = np.empty((len(data_nodes * n_gpu_per_node), len(t)))
-    for i, tt in enumerate(t):
-        one_time_step = np.array(
-            combine_gpu_util(data_nodes, data_list[i], n_gpu_per_node)
-        )
-        data_table[:, i] = one_time_step
-    return t, data_table, data_nodes
-
-
-t, data, node_names = read_gpu_log()
-
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
+t, data_table, data_nodes = data_to_table(
+    t, data_list, data_nodes, n_gpu_per_node=4
+)  # output flops
 fig = plot_gpu_utilization(
     t,
-    data,  # shape (len(node_names) * n_gpu_per_node, len(time_steps))
+    data_table,  # shape (len(node_names) * n_gpu_per_node, len(time_steps))
     n_gpu_per_node=4,
-    node_names=node_names,
+    node_names=data_nodes,
     target_path="/data/html/palakons/vll-gpu-30-min-latest.png",
 )
+
+tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)])
+
+plot_gpu_utilization_per_user(tt,total_tflops,util_by_user_per_time,save_location="/data/html/palakons/vll-gpu-user-latest.png")
+
