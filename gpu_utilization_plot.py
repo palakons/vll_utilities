@@ -80,7 +80,7 @@ def process_util_string(line):
             current_token = tag
         else:
             if current_token not in data:
-                data[current_token] = []
+                data[current_token] = [int(tag)]
             else:
                 data[current_token].append(int(tag))
     # print(data)
@@ -90,7 +90,7 @@ def process_util_string(line):
 def pad_zero_util(gpu_util_list, n_gpu_per_node=4):
     if len(gpu_util_list) < n_gpu_per_node:
         return gpu_util_list + [0] * (n_gpu_per_node - len(gpu_util_list))
-
+    return gpu_util_list[:n_gpu_per_node]
 
 def combine_gpu_util(node_names, data, n_gpu_per_node):
     result = []
