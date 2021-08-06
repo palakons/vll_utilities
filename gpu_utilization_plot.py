@@ -63,7 +63,37 @@ fig = plot_gpu_utilization(
     target_path="/data/html/palakons/vll-gpu-30-min-latest.png",
 )
 
-tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)])
+tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
+    t, data_list, data_nodes, user_list, flops_list, time_min_max=[len(t) * 0, len(t)]
+)
 
-plot_gpu_utilization_per_user(tt,total_tflops,util_by_user_per_time,save_location="/data/html/palakons/vll-gpu-user-latest.png")
+plot_gpu_utilization_per_user(
+    tt,
+    n_gpu_online,
+    total_tflops,
+    util_by_user_per_time,
+    save_location="/data/html/palakons/vll-gpu-user-latest.png",
+)
 
+gpu_whole = True
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
+tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
+    t,
+    data_list,
+    data_nodes,
+    user_list,
+    flops_list,
+    time_min_max=[len(t) * 0, len(t)],
+    is_counting_whole_gpu=gpu_whole,
+)
+# print(len(tt),len(n_gpu_online),len(total_tflops),len(util_by_user_per_time))
+# print(n_gpu_online,total_tflops,util_by_user_per_time)
+
+plot_gpu_utilization_per_user(
+    tt,
+    n_gpu_online,
+    total_tflops,
+    util_by_user_per_time,
+    save_location="/data/html/palakons/vll-gpu-whole-latest.png",
+    is_counting_whole_gpu=gpu_whole,
+)

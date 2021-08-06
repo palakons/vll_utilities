@@ -1,4 +1,5 @@
 import datetime
+from os import initgroups
 import pprint
 import re
 
@@ -222,6 +223,7 @@ def process_user_util_zero(users, utils, flops):
     utils_org = utils.copy()
     if len(flops) != len(utils):
         print("flops", len(flops), len(utils))
+        print("flops", flops, (utils))
 
     # print(utils)
     for i in range(len(flops)):
@@ -252,12 +254,18 @@ def time_diff_from_idx(t, time_range):
         time_diff = t[time_range[-1]] - t[time_range[0] - 1]
     else:
         time_diff = t[time_range[-1]] - (t[0] - (t[1] - t[0]))
-        
+
     return time_diff.total_seconds()
 
 
 def utlization_by_users(
-    t, data_list, data_nodes, user_list, flops_list, time_min_max=None
+    t,
+    data_list,
+    data_nodes,
+    user_list,
+    flops_list,
+    time_min_max=None,
+    is_counting_whole_gpu=False,
 ):
     total_utilization = {}
     if time_min_max is None:
@@ -267,7 +275,7 @@ def utlization_by_users(
         time_range = range(time_min_max[0], time_min_max[1])
 
     util_by_user_per_time = []
-    for i in time_range: # each time step
+    for i in time_range:  # each time step
         total_utilization_per_time = {}
         time_diff = time_diff_from_idx(t, [i])
         for node in data_nodes:  # each node: v01, etc.
@@ -283,7 +291,9 @@ def utlization_by_users(
                         comma_split_users
                     ):  # split utilization equally when multiple job on the same gpu
                         gpu_util_share = (
-                            util_dict[user] / len(comma_split_users) * time_diff
+                            (1 if is_counting_whole_gpu else util_dict[user])
+                            / len(comma_split_users)
+                            * time_diff
                         )
                         if user_extract in total_utilization:
                             total_utilization[user_extract] += gpu_util_share
@@ -301,7 +311,7 @@ def utlization_by_users(
     print(
         f"since start tracking, folow users in the tracking: {len(total_utilization.keys())}"
     )
-    
+
     time_diff = time_diff_from_idx(t, time_range)
     for user in total_utilization:
         total_utilization[user] /= time_diff
@@ -325,18 +335,20 @@ def utlization_by_users(
                 for item in flops_list[i][node]:
                     gpu_count = gpu_count.union([item["gpuid"]])
                     gpu_count_per_time = gpu_count_per_time.union([item["gpuid"]])
-                    sum_tflops += item["flop"]*time_diff
+                    sum_tflops += item["flop"] * time_diff
                     sum_tflops_per_time += item["flop"]
         n_gpu_online.append(len(gpu_count_per_time))
         total_tflops.append(sum_tflops_per_time)
 
-    time_diff = time_diff_from_idx(t, time_range)
-    sum_tflops /= time_diff
-    print(
-        f"average {sum_tflops:.2f} availble tera flops")
-    print(f"average utilzed tera flops {sum(total_utilization.values()):.2f}")
-    print(f" {sum(total_utilization.values())/(sum_tflops)*100:.2f}% utilization"
-    )
+    print(f"average utilzed {sum(total_utilization.values()):.2f}")
+    if is_counting_whole_gpu:
+        print(f"average {sum(n_gpu_online)/len(n_gpu_online):.2f} availble gpu")
+        print(f" {sum(total_utilization.values())/(sum(n_gpu_online)/len(n_gpu_online))*100:.2f}% utilization")
+    else:
+        time_diff = time_diff_from_idx(t, time_range)
+        sum_tflops /= time_diff
+        print(f"average {sum_tflops:.2f} availble tera flops")
+        print(f" {sum(total_utilization.values())/(sum_tflops)*100:.2f}% utilization")
     print(f" on different {len(gpu_count)} GPU IDs")
 
     return (
@@ -346,16 +358,17 @@ def utlization_by_users(
         util_by_user_per_time,
     )
 
+
 def cloak_names(names):
     results = []
     for name in names:
-        results.append(name[0]+'*'*(len(name)-2)+name[-1])
+        results.append(name[0] + "*" * (len(name) - 2) + name[-1])
     return results
 
 
 def util_by_user_to_table(utlization):
     all_names = sorted(list(set([b for a in utlization for b in list(a.keys())])))
-    
+
     output = dict((k, []) for k in all_names)
     for util in utlization:
         data = dict.fromkeys(all_names, 0)
@@ -369,19 +382,29 @@ def util_by_user_to_table(utlization):
 
 
 def plot_gpu_utilization_per_user(
-    tt, total_tflops, util_by_user_per_time, save_location=None
+    tt,
+    n_gpu_online,
+    total_tflops,
+    util_by_user_per_time,
+    save_location=None,
+    is_counting_whole_gpu=False,
 ):
     fig = plt.figure()
-    # plt.plot(tt,n_gpu_online,label = ' gpu online')
-    plt.plot(tt, total_tflops, label="available tflops")
+    title = "GPU utilization by user: " + ("counting GPU whole" if is_counting_whole_gpu else "couting tflops")
+    plt.title(title)
+    if is_counting_whole_gpu:
+        plt.plot(tt, n_gpu_online, label="gpu online")
+        plt.ylabel("#GPUs")
+    else:
+        plt.plot(tt, total_tflops, label="available tflops")
+        plt.ylabel("tflops")
     # plt.plot(tt,[sum(a.values()) for a in util_by_user_per_time],label = 'utilized tflops')
     stacked_data = util_by_user_to_table(util_by_user_per_time)
     # print(stacked_data.values())
     plt.stackplot(tt, stacked_data.values(), labels=cloak_names(stacked_data.keys()))
 
     plt.legend(bbox_to_anchor=(1, -0.15), ncol=3)
-    plt.xlabel('time')
-    plt.ylabel('tflops')
+    plt.xlabel("time")
     plt.tight_layout()
     if save_location is not None:
         fig.savefig(save_location)
