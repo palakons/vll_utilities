@@ -67,6 +67,15 @@ tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
     t, data_list, data_nodes, user_list, flops_list, time_min_max=[len(t) * 0, len(t)]
 )
 
+array_to_csv(
+    tt,
+    user_list,
+    n_gpu_online,
+    total_tflops,
+    util_by_user_per_time,
+    outfile="/data/html/palakons/track_tflops.csv",
+)
+
 plot_gpu_utilization_per_user(
     tt,
     n_gpu_online,
@@ -85,6 +94,15 @@ tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
     flops_list,
     time_min_max=[len(t) * 0, len(t)],
     is_counting_whole_gpu=gpu_whole,
+)
+
+array_to_csv(
+    tt,
+    user_list,
+    n_gpu_online,
+    total_tflops,
+    util_by_user_per_time,
+    outfile="/data/html/palakons/track_gpu_whole.csv",
 )
 # print(len(tt),len(n_gpu_online),len(total_tflops),len(util_by_user_per_time))
 # print(n_gpu_online,total_tflops,util_by_user_per_time)

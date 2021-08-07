@@ -343,7 +343,9 @@ def utlization_by_users(
     print(f"average utilzed {sum(total_utilization.values()):.2f}")
     if is_counting_whole_gpu:
         print(f"average {sum(n_gpu_online)/len(n_gpu_online):.2f} availble gpu")
-        print(f" {sum(total_utilization.values())/(sum(n_gpu_online)/len(n_gpu_online))*100:.2f}% utilization")
+        print(
+            f" {sum(total_utilization.values())/(sum(n_gpu_online)/len(n_gpu_online))*100:.2f}% utilization"
+        )
     else:
         time_diff = time_diff_from_idx(t, time_range)
         sum_tflops /= time_diff
@@ -390,7 +392,9 @@ def plot_gpu_utilization_per_user(
     is_counting_whole_gpu=False,
 ):
     fig = plt.figure()
-    title = "GPU utilization by user: " + ("counting GPU whole" if is_counting_whole_gpu else "couting tflops")
+    title = "GPU utilization by user: " + (
+        "counting GPU whole" if is_counting_whole_gpu else "couting tflops"
+    )
     plt.title(title)
     if is_counting_whole_gpu:
         plt.plot(tt, n_gpu_online, label="gpu online")
@@ -409,3 +413,47 @@ def plot_gpu_utilization_per_user(
     if save_location is not None:
         fig.savefig(save_location)
     return fig
+
+
+def array_to_csv_long(
+    tt, n_gpu_online, total_tflops, util_by_user_per_time, outfile=None
+):
+    print("output", outfile)
+    import csv
+
+    print(util_by_user_per_time[0])
+
+    header = ["time", "user", "value"]
+    with open(outfile, "w", newline="") as csvfile:
+        spamwriter = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+        spamwriter.writerow(header)
+        for i in range(len(tt)):
+            for user in util_by_user_per_time[i]:
+                spamwriter.writerow([tt[i], user, util_by_user_per_time[i][user]])
+
+
+def array_to_csv(
+    tt, user_list, n_gpu_online, total_tflops, util_by_user_per_time, outfile=None
+):
+    print("output", outfile)
+    import csv
+
+    users = sorted(
+        list(set([user for k in util_by_user_per_time for user in list(k.keys())]))
+    )
+
+    header = ["time"] + users
+    # print(header)
+    with open(outfile, "w", newline="") as csvfile:
+        spamwriter = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+        spamwriter.writerow(header)
+        for i in range(len(tt)):
+            spamwriter.writerow(
+                [tt[i]]
+                + [
+                    util_by_user_per_time[i][user]
+                    if user in util_by_user_per_time[i]
+                    else 0
+                    for user in users
+                ]
+            )
