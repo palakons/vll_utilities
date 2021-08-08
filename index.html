@@ -6,14 +6,18 @@
 <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
 
 <!-- Create a div where the graph will take place -->
+<div id="my_dataviz_node_heatmap"></div>
 <div id="my_dataviz_gpu"></div>
 <div id="my_dataviz_flops"></div>
 <script>
-    function myFunction(svg_id, y_label, csv_name) {
+    function cloak_name(name) {
+        return name[0] + '_'.repeat(name.length - 2) + name[name.length - 1]
+    }
+    function draw_stacked_chart(svg_id, y_label, csv_name) {
         // set the dimensions and margins of the graph
         var margin = { top: 60, right: 230, bottom: 50, left: 50 },
             width = 860 - margin.left - margin.right,
-            height = 400 - margin.top - margin.bottom;
+            height = 200 - margin.top - margin.bottom;
 
         // append the svg object to the body of the page
         var svg = d3.select("#" + svg_id)
@@ -26,16 +30,9 @@
 
         // Parse the Data
         d3.csv(csv_name, function (data) {
-            // datetime.strptime(      '2021-07-26 10:30:01', '%Y-%m-%d %H:%M:%S')
-
             var format = d3.timeParse("%Y-%m-%d %H:%M:%S");
-            // var format = d3.timeParse("%Y");
-
-            // 2021-07-26 10:30:01,1,2,3,4
 
             data.forEach(function (d) {
-                // console.log(d.time);
-                // console.log(format(d.time));
                 d.time = format(d.time);
             });
 
@@ -51,8 +48,6 @@
             var stackedData = d3.stack()
                 .keys(keys)
                 (data)
-
-
 
             //////////
             // AXIS //
@@ -86,9 +81,6 @@
                 .range([height, 0]);
             svg.append("g")
                 .call(d3.axisLeft(y).ticks(5))
-
-            //   console.log(stackedData)
-
 
             //////////
             // BRUSHING AND CHART //
@@ -124,7 +116,7 @@
                 .data(stackedData)
                 .enter()
                 .append("path")
-                .attr("class", function (d) { return "myArea"+svg_id+" " + d.key+svg_id })
+                .attr("class", function (d) { return "myArea" + svg_id + " " + d.key + svg_id })
                 .style("fill", function (d) { return color(d.key); })
                 .attr("d", area)
 
@@ -159,8 +151,6 @@
                     .attr("d", area)
             }
 
-
-
             //////////
             // HIGHLIGHT GROUP //
             //////////
@@ -169,30 +159,28 @@
             var highlight = function (d) {
                 console.log(d)
                 // reduce opacity of all groups
-                d3.selectAll(".myArea"+svg_id).style("opacity", .1)
+                d3.selectAll(".myArea" + svg_id).style("opacity", .1)
                 // expect the one that is hovered
-                d3.select("." + d+svg_id).style("opacity", 1)
+                d3.select("." + d + svg_id).style("opacity", 1)
             }
 
             // And when it is not hovered anymore
             var noHighlight = function (d) {
-                d3.selectAll(".myArea"+svg_id).style("opacity", 1)
+                d3.selectAll(".myArea" + svg_id).style("opacity", 1)
             }
-
-
 
             //////////
             // LEGEND //
             //////////
 
             // Add one dot in the legend for each name.
-            var size = 20
+            var size = 7
             svg.selectAll("myrect")
                 .data(keys)
                 .enter()
                 .append("rect")
-                .attr("x", width+margin.left-30)
-                .attr("y", function (d, i) { return 10 + i * (size + 5) }) // 100 is where the first dot appears. 25 is the distance between dots
+                .attr("x", width + margin.left - 30)
+                .attr("y", function (d, i) { return 0 + i * (size + 5) }) // 100 is where the first dot appears. 25 is the distance between dots
                 .attr("width", size)
                 .attr("height", size)
                 .style("fill", function (d) { return color(d) })
@@ -204,18 +192,111 @@
                 .data(keys)
                 .enter()
                 .append("text")
-                .attr("x", width+margin.left-30 + size * 1.2)
-                .attr("y", function (d, i) { return 10 + i * (size + 5) + (size / 2) }) // 100 is where the first dot appears. 25 is the distance between dots
+                .attr("x", width + margin.left - 30 + size * 1.2)
+                .attr("y", function (d, i) { return 0 + i * (size + 5) + (size / 2) }) // 100 is where the first dot appears. 25 is the distance between dots
                 .style("fill", function (d) { return color(d) })
-                .text(function (d) { return d })
+                .text(function (d) { return cloak_name(d) })
                 .attr("text-anchor", "left")
                 .style("alignment-baseline", "middle")
+                .style("font-family", '"Lucida Console", "Courier New", monospace')
+                .style('font-size', 'small')
                 .on("mouseover", highlight)
                 .on("mouseleave", noHighlight)
 
         })
     }
 
-    myFunction('my_dataviz_gpu', "# of GPU Utilized", "track_gpu_whole.csv")
-    myFunction('my_dataviz_flops', "TFlops Utilized", "track_tflops.csv")
+    function draw_gpu_heatmap(svg_id, csv_name) {
+
+        // set the dimensions and margins of the graph
+        var margin = { top: 30, right: 30, bottom: 30, left: 50 },
+            width = 660 - margin.left - margin.right,
+            height = 650 - margin.top - margin.bottom;
+
+        // append the svg object to the body of the page
+        var svg = d3.select("#" + svg_id)
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform",
+                "translate(" + margin.left + "," + margin.top + ")");
+
+        //Read the data
+        d3.csv("track_heatmap.csv", function (data) {
+            var format = d3.timeParse("%Y-%m-%d %H:%M:%S");
+
+            data.forEach(function (d) {
+                d.time = format(d.time);
+            });
+
+            xExtents = d3.extent(data, function (d) { return d.time; })
+            var x = d3.scaleTime()
+                .range([0, width])
+                .domain(xExtents)
+            yExtents = d3.set(data.map(function (d) { return d.node_gpu; })).values()
+
+            var y = d3.scaleBand()
+                .range([height, 0])
+                .domain(yExtents)
+
+            v_extent = d3.extent(data, function (d) { if (!isNaN(d.value)) return d.value; else return 0 })
+            var myColor = d3.scaleLinear()
+                .range(["lightgreen", "darkred"])
+                .domain(v_extent)
+
+            // create a tooltip
+            var tooltip = d3.select("#" + svg_id)
+                .append("div")
+                .style("opacity", 0)
+                .attr("class", "tooltip")
+                .style("background-color", "white")
+                .style("border", "solid")
+                .style("border-width", "2px")
+                .style("border-radius", "5px")
+                .style("padding", "5px")
+
+            // Three function that change the tooltip when user hover / move / leave a cell
+            var mouseover = function (d) {
+                tooltip.style("opacity", 1)
+            }
+            var mousemove = function (d) {
+                tooltip
+                    .html("Utilization status on "+d.time+"</br>"+d.node_gpu+": " + ((isNaN(d.value)) ? "offline" : d.value +'%'))
+                    .style("left", (d3.mouse(this)[0] + 70) + "px")
+                    .style("top", (d3.mouse(this)[1]) + "px")
+            }
+            var mouseleave = function (d) {
+                tooltip.style("opacity", 0)
+            }
+
+            unique_x = d3.set(data.map(function (d) { return d.time; })).values()
+            // add the squares
+            svg.selectAll()
+                .data(data, function (d) { return d.time + ':' + d.node_gpu; })
+                .enter()
+                .append("rect")
+                .attr("x", function (d) { return x(d.time) })
+                .attr("y", function (d) {
+                    if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
+                    return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
+                })
+                .attr("width", width / unique_x.length * 1.05)
+                .attr("height", function (d) { if (isNaN(d.value)) h = v_extent[1]; else h = d.value; return y.bandwidth() * h / v_extent[1] })
+                .style("fill", function (d) { if (isNaN(d.value)) return 'Gainsboro'; else return myColor(d.value) })
+                .on("mouseover", mouseover)
+                .on("mousemove", mousemove)
+                .on("mouseleave", mouseleave)
+
+            svg.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x))
+            svg.append("g")
+                .call(d3.axisLeft(y));
+        })
+    }
+
+    draw_stacked_chart('my_dataviz_gpu', "# of GPU Utilized", "track_gpu_whole.csv")
+    draw_stacked_chart('my_dataviz_flops', "TFlops Utilized", "track_tflops.csv")
+    draw_gpu_heatmap('my_dataviz_node_heatmap', "track_heatmap.csv")
 </script>

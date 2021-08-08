@@ -54,14 +54,16 @@ tflops_list = {
 
 gpu_whole = True
 t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
-tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)],is_counting_whole_gpu=gpu_whole)
+# tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)],is_counting_whole_gpu=gpu_whole)
 # print(len(tt),len(n_gpu_online),len(total_tflops),len(util_by_user_per_time))
 # print(n_gpu_online,total_tflops,util_by_user_per_time)
 
 # plot_gpu_utilization_per_user(tt,n_gpu_online,total_tflops,util_by_user_per_time,save_location="/home/palakons/vll_utilities/per_users.png",is_counting_whole_gpu=gpu_whole)
 
 if False:
-    t, data_table, data_nodes = data_to_table(t, data_list, data_nodes, n_gpu_per_node=4)# output flops
+    t, data_table, data_nodes = data_to_table(
+        t, data_list, data_nodes, n_gpu_per_node=4
+    )  # output flops
     fig = plot_gpu_utilization(
         t,
         data_table,  # shape (len(node_names) * n_gpu_per_node, len(time_steps))
@@ -71,8 +73,16 @@ if False:
         target_path="/home/palakons/vll_utilities/vll-gpu-30-min-latest_test.png",
     )
 
-array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_gpu_whole.csv')
-gpu_whole = False
-t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
-tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)],is_counting_whole_gpu=gpu_whole)
-array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_tflops.csv')
+if True:
+    t, data_table, data_nodes = data_to_table(
+        t, data_list, data_nodes, n_gpu_per_node=4, pad_value=None
+    )  # output flops
+    table_to_csv(t, data_table, data_nodes,n_gpu_per_node=4,outfile='/data/html/palakons/track_heatmap.csv')
+
+
+# array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_gpu_whole.csv')
+
+# gpu_whole = False
+# t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
+# tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)],is_counting_whole_gpu=gpu_whole)
+# array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_tflops.csv')

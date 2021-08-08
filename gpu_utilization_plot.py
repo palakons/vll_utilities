@@ -115,3 +115,9 @@ plot_gpu_utilization_per_user(
     save_location="/data/html/palakons/vll-gpu-whole-latest.png",
     is_counting_whole_gpu=gpu_whole,
 )
+
+
+t, data_table, data_nodes = data_to_table(
+    t, data_list, data_nodes, n_gpu_per_node=4, pad_value=None
+)  # output flops
+table_to_csv(t, data_table, data_nodes,n_gpu_per_node=4,outfile='/data/html/palakons/track_heatmap.csv')

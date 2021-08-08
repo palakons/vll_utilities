@@ -1,7 +1,8 @@
+import csv
 import datetime
-from os import initgroups
 import pprint
 import re
+from os import initgroups
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -187,29 +188,35 @@ def process_gpuid_string(line, tflops_list):
     return data
 
 
-def pad_zero_util(gpu_util_list, n_gpu_per_node=4):
+def pad_zero_util(gpu_util_list, n_gpu_per_node=4, pad_value=0):
     if len(gpu_util_list) < n_gpu_per_node:
-        return gpu_util_list + [0] * (n_gpu_per_node - len(gpu_util_list))
+        return gpu_util_list + [
+            pad_value for i in range(n_gpu_per_node - len(gpu_util_list))
+        ]
     return gpu_util_list[:n_gpu_per_node]
 
 
-def combine_gpu_util(node_names, data, n_gpu_per_node):
+def combine_gpu_util(node_names, data, n_gpu_per_node, pad_value=0):
     result = []
     for name in node_names:
         try:
-            result += pad_zero_util(data[name] if name in data else [], n_gpu_per_node)
+            result += pad_zero_util(
+                data[name] if name in data else [], n_gpu_per_node, pad_value=pad_value
+            )
         except:
             print(f"error combine_gpu_util {name} {data[name]} ")
     return result
 
 
-def data_to_table(t, data_list, data_nodes, n_gpu_per_node):
+def data_to_table(t, data_list, data_nodes, n_gpu_per_node, pad_value=0):
 
     data_table = np.empty((len(data_nodes * n_gpu_per_node), len(t)))
     for i, tt in enumerate(t):
         try:
             one_time_step = np.array(
-                combine_gpu_util(data_nodes, data_list[i], n_gpu_per_node)
+                combine_gpu_util(
+                    data_nodes, data_list[i], n_gpu_per_node, pad_value=pad_value
+                )
             )
             data_table[:, i] = one_time_step
         except:
@@ -436,7 +443,6 @@ def array_to_csv(
     tt, user_list, n_gpu_online, total_tflops, util_by_user_per_time, outfile=None
 ):
     print("output", outfile)
-    import csv
 
     users = sorted(
         list(set([user for k in util_by_user_per_time for user in list(k.keys())]))
@@ -457,3 +463,24 @@ def array_to_csv(
                     for user in users
                 ]
             )
+
+
+def table_to_csv(t, data_table, data_nodes, n_gpu_per_node=4, outfile=None):
+    print("output", outfile)
+
+    data_nodes = sorted(data_nodes)
+
+    header = ["time", "node_gpu", "value"]
+
+    # print(header)
+    with open(outfile, "w", newline="") as csvfile:
+        spamwriter = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+        spamwriter.writerow(header)
+        # print(len(t),len(data_table[0]))
+        for i in range(len(t)):
+            # print([t[i]],data_table[i])
+            nodes = [
+                node + f"g{i:02d}" for node in data_nodes for i in range(n_gpu_per_node)
+            ]
+            for i_node in range(len(nodes)):
+                spamwriter.writerow(list([t[i], nodes[i_node], data_table[i_node][i]]))
