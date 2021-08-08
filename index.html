@@ -228,25 +228,27 @@
 
             data.forEach(function (d) {
                 d.time = format(d.time);
+                d.value = parseFloat(d.value);
             });
 
             xExtents = d3.extent(data, function (d) { return d.time; })
             var x = d3.scaleTime()
                 .range([0, width])
                 .domain(xExtents)
+                
             yExtents = d3.set(data.map(function (d) { return d.node_gpu; })).values()
 
             var y = d3.scaleBand()
                 .range([height, 0])
                 .domain(yExtents)
 
-            v_extent = d3.extent(data, function (d) { if (!isNaN(d.value)) return d.value; else return 0 })
+            v_extent = d3.extent(data, function (d) { if (isNaN(d.value)) return 0; else return d.value })
             var myColor = d3.scaleLinear()
                 .range(["lightgreen", "darkred"])
                 .domain(v_extent)
 
             // create a tooltip
-            var tooltip = d3.select("#" + svg_id)
+            var tooltip = d3.select("#my_dataviz_node_heatmap")// + svg_id)
                 .append("div")
                 .style("opacity", 0)
                 .attr("class", "tooltip")
@@ -255,6 +257,7 @@
                 .style("border-width", "2px")
                 .style("border-radius", "5px")
                 .style("padding", "5px")
+                .style("position", "absolute")
 
             // Three function that change the tooltip when user hover / move / leave a cell
             var mouseover = function (d) {
@@ -262,7 +265,7 @@
             }
             var mousemove = function (d) {
                 tooltip
-                    .html("Utilization status on "+d.time+"</br>"+d.node_gpu+": " + ((isNaN(d.value)) ? "offline" : d.value +'%'))
+                    .html("Utilization status on " + d.time + "</br>" + d.node_gpu + ": " + ((isNaN(d.value)) ? "offline" : d.value.toFixed(0) + '%'))
                     .style("left", (d3.mouse(this)[0] + 70) + "px")
                     .style("top", (d3.mouse(this)[1]) + "px")
             }
@@ -282,7 +285,11 @@
                     return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
                 })
                 .attr("width", width / unique_x.length * 1.05)
-                .attr("height", function (d) { if (isNaN(d.value)) h = v_extent[1]; else h = d.value; return y.bandwidth() * h / v_extent[1] })
+                .attr("height", function (d) {
+                    if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
+                    // console.log(y.bandwidth(),h , v_extent[1])
+                    return y.bandwidth() * h / v_extent[1]
+                })
                 .style("fill", function (d) { if (isNaN(d.value)) return 'Gainsboro'; else return myColor(d.value) })
                 .on("mouseover", mouseover)
                 .on("mousemove", mousemove)
@@ -290,9 +297,10 @@
 
             svg.append("g")
                 .attr("transform", "translate(0," + height + ")")
-                .call(d3.axisBottom(x))
+                .call(d3.axisBottom(x).ticks(5));
             svg.append("g")
-                .call(d3.axisLeft(y));
+                .call(d3.axisLeft(y)
+                    .tickValues(y.domain().filter(function (d, i) { return !(i % 4) })));
         })
     }
 
