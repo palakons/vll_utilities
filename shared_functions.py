@@ -225,7 +225,7 @@ def data_to_table(t, data_list, data_nodes, n_gpu_per_node, pad_value=0):
     return t, data_table, data_nodes
 
 
-def process_user_util_zero(users, utils, flops):
+def process_user_util_zero(users, utils, flops, output_tflops=True):
     user_util = {}
     utils_org = utils.copy()
     if len(flops) != len(utils):
@@ -234,13 +234,17 @@ def process_user_util_zero(users, utils, flops):
 
     # print(utils)
     for i in range(len(flops)):
-        utils[i] *= flops[i]["flop"] / 100
+        if output_tflops:  # convert to tflops
+            utils[i] *= flops[i]["flop"] / 100
+        else:  # output count
+            utils[i] = 1
     # print(utils)
 
     if len(users) < len(utils):
+        # print(users, utils, len(users), len(utils))
         need_remove = len(utils) - len(users)
         for i in range(need_remove):
-            utils.remove(0)
+            utils.remove(0 if output_tflops else 1)
 
     if len(users) < len(utils):
         print("why")
@@ -286,10 +290,15 @@ def utlization_by_users(
         total_utilization_per_time = {}
         time_diff = time_diff_from_idx(t, [i])
         for node in data_nodes:  # each node: v01, etc.
-            if node in user_list[i]:
+            if node in user_list[i]:  # if vxx si online at time i
+                # print(user_list[i])
                 util_dict = process_user_util_zero(
-                    user_list[i][node], data_list[i][node], flops_list[i][node]
+                    user_list[i][node],
+                    data_list[i][node],
+                    flops_list[i][node],
+                    output_tflops=not is_counting_whole_gpu,
                 )
+                # print(util_dict)
                 for user in util_dict:
                     comma_split_users = user.split(",")
                     for (
@@ -298,9 +307,7 @@ def utlization_by_users(
                         comma_split_users
                     ):  # split utilization equally when multiple job on the same gpu
                         gpu_util_share = (
-                            (1 if is_counting_whole_gpu else util_dict[user])
-                            / len(comma_split_users)
-                            * time_diff
+                            util_dict[user] / len(comma_split_users) * time_diff
                         )
                         if user_extract in total_utilization:
                             total_utilization[user_extract] += gpu_util_share
@@ -311,7 +318,7 @@ def utlization_by_users(
                             total_utilization_per_time[user_extract] += gpu_util_share
                         else:
                             total_utilization_per_time[user_extract] = gpu_util_share
-
+                    # print(user_extract, total_utilization[user_extract] / time_diff)
         for user in total_utilization_per_time:
             total_utilization_per_time[user] /= time_diff
         util_by_user_per_time.append(total_utilization_per_time)
