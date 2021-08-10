@@ -11,7 +11,8 @@
 <div id="my_dataviz_flops"></div>
 <script>
     function cloak_name(name) {
-        return name[0] + '_'.repeat(name.length - 2) + name[name.length - 1]
+        return name
+        // return name[0] + '_'.repeat(name.length - 2) + name[name.length - 1]
     }
     function draw_stacked_chart(svg_id, y_label, csv_name) {
         // set the dimensions and margins of the graph
@@ -30,9 +31,11 @@
 
         // Parse the Data
         d3.csv(csv_name, function (data) {
-            var format = d3.timeParse("%Y-%m-%d %H:%M:%S");
+            var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
+            // var format2 = d3.timeParse("%Y-%m-%d %H:%M:%S");
 
             data.forEach(function (d) {
+                // console.log(format(d.time))
                 d.time = format(d.time);
             });
 
@@ -224,7 +227,7 @@
 
         //Read the data
         d3.csv("track_heatmap.csv", function (data) {
-            var format = d3.timeParse("%Y-%m-%d %H:%M:%S");
+            var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
 
             data.forEach(function (d) {
                 d.time = format(d.time);
@@ -235,7 +238,7 @@
             var x = d3.scaleTime()
                 .range([0, width])
                 .domain(xExtents)
-                
+
             yExtents = d3.set(data.map(function (d) { return d.node_gpu; })).values()
 
             var y = d3.scaleBand()

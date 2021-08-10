@@ -241,10 +241,19 @@ def process_user_util_zero(users, utils, flops, output_tflops=True):
     # print(utils)
 
     if len(users) < len(utils):
-        # print(users, utils, len(users), len(utils))
         need_remove = len(utils) - len(users)
+        cache = 0
         for i in range(need_remove):
-            utils.remove(0 if output_tflops else 1)
+            v_to_remove = 0 if output_tflops else 1
+            if v_to_remove not in utils: # error from GPUtil, split the biggest
+                v_to_remove = max(utils)
+                cache += v_to_remove
+                print(
+                    "something wrong",f'remove {v_to_remove}, cahce {cache}'
+                )  
+            utils.remove(v_to_remove)
+        for i in range(len(utils)):
+            utils[i] += cache / len(utils)
 
     if len(users) < len(utils):
         print("why")
@@ -292,6 +301,7 @@ def utlization_by_users(
         for node in data_nodes:  # each node: v01, etc.
             if node in user_list[i]:  # if vxx si online at time i
                 # print(user_list[i])
+                # print(t[time_range[i]])
                 util_dict = process_user_util_zero(
                     user_list[i][node],
                     data_list[i][node],
