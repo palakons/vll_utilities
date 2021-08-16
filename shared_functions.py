@@ -74,7 +74,7 @@ def read_gpu_log_2(
     input_file="/home2/palakons/track_cluster_usage.log",
     n_gpu_per_node=4,
 ):
-
+    print("open", input_file)
     t = []
 
     data_nodes = set([])
@@ -225,6 +225,22 @@ def data_to_table(t, data_list, data_nodes, n_gpu_per_node, pad_value=0):
     return t, data_table, data_nodes
 
 
+def remove_unmatched_utils(users, utils_org, output_tflops):
+    utils = utils_org.copy()
+    need_remove = len(utils) - len(users)
+    cache = 0
+    for i in range(need_remove):
+        v_to_remove = 0 if output_tflops else 1
+        if v_to_remove not in utils:  # error from GPUtil, split the biggest
+            v_to_remove = max(utils)
+            cache += v_to_remove
+            print("something wrong", f"remove {v_to_remove}, cahce {cache}")
+        utils.remove(v_to_remove)
+    for i in range(len(utils)):
+        utils[i] += cache / len(utils)
+    return utils
+
+
 def process_user_util_zero(users, utils, flops, output_tflops=True):
     user_util = {}
     utils_org = utils.copy()
@@ -240,20 +256,32 @@ def process_user_util_zero(users, utils, flops, output_tflops=True):
             utils[i] = 1
     # print(utils)
 
-    if len(users) < len(utils):
-        need_remove = len(utils) - len(users)
-        cache = 0
-        for i in range(need_remove):
-            v_to_remove = 0 if output_tflops else 1
-            if v_to_remove not in utils: # error from GPUtil, split the biggest
-                v_to_remove = max(utils)
-                cache += v_to_remove
-                print(
-                    "something wrong",f'remove {v_to_remove}, cahce {cache}'
-                )  
-            utils.remove(v_to_remove)
-        for i in range(len(utils)):
-            utils[i] += cache / len(utils)
+    # aaa=  users.copy()
+    # bbb = utils.copy()
+    utils = remove_unmatched_utils(users, utils, output_tflops)
+
+    # if len(users) < len(utils):
+    #     need_remove = len(utils) - len(users)
+    #     cache = 0
+    #     for i in range(need_remove):
+    #         v_to_remove = 0 if output_tflops else 1
+    #         if v_to_remove not in utils: # error from GPUtil, split the biggest
+    #             v_to_remove = max(utils)
+    #             cache += v_to_remove
+    #             print(
+    #                 "something wrong",f'remove {v_to_remove}, cahce {cache}'
+    #             )
+    #         utils.remove(v_to_remove)
+    #     for i in range(len(utils)):
+    #         utils[i] += cache / len(utils)
+
+    # # print("compare",utils,utils2)
+    # l1=utils.copy()
+    # l1.sort()
+    # l2=utils2
+    # l2.sort()
+    # if(l1!=l2):
+    #     return "Non equal"
 
     if len(users) < len(utils):
         print("why")
@@ -287,7 +315,6 @@ def utlization_by_users(
     time_min_max=None,
     is_counting_whole_gpu=False,
 ):
-    total_utilization = {}
     if time_min_max is None:
         # time_range = [len(t)-1,len(t)-1]
         time_range = list(range(len(t))[-100:-5])
@@ -295,8 +322,11 @@ def utlization_by_users(
         time_range = range(time_min_max[0], time_min_max[1])
 
     util_by_user_per_time = []
+
     for i in time_range:  # each time step
+        total_utilization = {}
         total_utilization_per_time = {}
+        total_utilization_per_node = {}
         time_diff = time_diff_from_idx(t, [i])
         for node in data_nodes:  # each node: v01, etc.
             if node in user_list[i]:  # if vxx si online at time i
@@ -308,7 +338,8 @@ def utlization_by_users(
                     flops_list[i][node],
                     output_tflops=not is_counting_whole_gpu,
                 )
-                # print(util_dict)
+                # print("util_dict")
+                # pprint.pprint(util_dict)
                 for user in util_dict:
                     comma_split_users = user.split(",")
                     for (
@@ -328,7 +359,7 @@ def utlization_by_users(
                             total_utilization_per_time[user_extract] += gpu_util_share
                         else:
                             total_utilization_per_time[user_extract] = gpu_util_share
-                    # print(user_extract, total_utilization[user_extract] / time_diff)
+
         for user in total_utilization_per_time:
             total_utilization_per_time[user] /= time_diff
         util_by_user_per_time.append(total_utilization_per_time)
@@ -487,7 +518,7 @@ def table_to_csv(t, data_table, data_nodes, n_gpu_per_node=4, outfile=None):
 
     data_nodes = sorted(data_nodes)
 
-    header = ["time", "node_gpu", "value"]
+    header = ["time", "node_gpu", "value", "user"]
 
     # print(header)
     with open(outfile, "w", newline="") as csvfile:
@@ -501,3 +532,63 @@ def table_to_csv(t, data_table, data_nodes, n_gpu_per_node=4, outfile=None):
             ]
             for i_node in range(len(nodes)):
                 spamwriter.writerow(list([t[i], nodes[i_node], data_table[i_node][i]]))
+
+
+def divide_gpu_per_user(gpu_value, users, storage):
+
+    comma_split_users = users.split(",")
+    for (
+        user_extract
+    ) in (
+        comma_split_users
+    ):  # split utilization equally when multiple job on the same gpu
+        gpu_util_share = gpu_value / len(comma_split_users)
+        if user_extract in storage:
+            storage[user_extract] += gpu_util_share
+        else:
+            storage[user_extract] = gpu_util_share
+    return storage
+
+
+def process_gpu_per_node(data_list, user_list, data_nodes, output_tflops=True):
+    result = []
+    for time_idx in range(len(data_list)):
+        result_per_time = {}
+        for node in data_nodes:
+            # print("node", node)
+            storage = {}
+            if node in user_list[time_idx]:
+                data = data_list[time_idx][node]
+                if len(data_list[time_idx][node]) != len(user_list[time_idx][node]):
+                    # pprint.pprint(data_list[time_idx][node])
+                    # pprint.pprint(user_list[time_idx][node])
+                    data = remove_unmatched_utils(
+                        user_list[time_idx][node],
+                        data_list[time_idx][node],
+                        output_tflops,
+                    )
+                    # pprint.pprint(data_list[time_idx][node])
+                for gpu_idx in range(len(data)):
+                    storage = divide_gpu_per_user(
+                        data[gpu_idx],
+                        user_list[time_idx][node][gpu_idx],
+                        storage,
+                    )
+            result_per_time[node] = storage
+        result.append(result_per_time)
+
+    return result
+
+
+def per_node_to_csv_long(tt, data, outfile=None):
+    print("output: per_node_to_csv_long", outfile)
+
+    header = ["time", "node", "user"]
+    with open(outfile, "w", newline="") as csvfile:
+        spamwriter = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+        spamwriter.writerow(header)
+        for time_idx in range(len(tt)):
+            for node in data[time_idx]:
+                if len(data[time_idx][node]) > 0:
+                    max_user = max(data[time_idx][node], key=data[time_idx][node].get)
+                    spamwriter.writerow([tt[time_idx], node, max_user])

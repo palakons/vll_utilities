@@ -52,14 +52,26 @@ tflops_list = {
 }
 # https://www.digitaltrends.com/computing/nvidia-rtx-3090-vs-rtx-2080-ti-most-powerful-gaming-gpus-duke-it-out/
 
-gpu_whole = True
-t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list,input_file='test.log')
-# print(t, data_list)#, 
-# print(data_nodes)# 
+gpu_whole =  True
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(
+    tflops_list, input_file="test.log"
+)
+# print(t, data_list)#,
+# print(data_nodes)#
 # print(user_list)
 # print(flops_list)
 
-tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)],is_counting_whole_gpu=gpu_whole)
+tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
+    t,
+    data_list,
+    data_nodes,
+    user_list,
+    flops_list,
+    time_min_max=[len(t) * 0, len(t)],
+    is_counting_whole_gpu=gpu_whole,
+)
+
+
 # print(tt)
 # print(n_gpu_online)
 # print(total_tflops)
@@ -82,16 +94,32 @@ if False:
         target_path="/home/palakons/vll_utilities/vll-gpu-30-min-latest_test.png",
     )
 
-if not True:
+if True:
     t, data_table, data_nodes = data_to_table(
         t, data_list, data_nodes, n_gpu_per_node=4, pad_value=None
     )  # output flops
-    table_to_csv(t, data_table, data_nodes,n_gpu_per_node=4,outfile='/data/html/palakons/track_heatmap.csv')
+    # table_to_csv(
+    #     t,
+    #     data_table,
+    #     data_nodes,
+    #     n_gpu_per_node=4,
+    #     outfile="/data/html/palakons/track_heatmap.csv",
+    # )
 
 
 # array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_gpu_whole.csv')
 
-# gpu_whole = False
-# t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
+gpu_whole = False
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
 # tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)],is_counting_whole_gpu=gpu_whole)
 # array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_tflops.csv')
+
+
+# print("data_list")
+# pprint.pprint(data_list)
+# print("user_list")
+# pprint.pprint(user_list)
+
+
+main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes)
+per_node_to_csv_long( t,main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv")

@@ -52,6 +52,10 @@ tflops_list = {
 }
 
 t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
+
+main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes)
+per_node_to_csv_long( t,main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv")
+
 t, data_table, data_nodes = data_to_table(
     t, data_list, data_nodes, n_gpu_per_node=4
 )  # output flops
