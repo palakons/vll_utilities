@@ -3,7 +3,14 @@
 <head>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <meta charset="utf-8">
-
+    <style>
+        table,
+        th,
+        td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+    </style>
 </head>
 <!-- Load d3.js & color scale-->
 <script src="https://d3js.org/d3.v4.js"></script>
@@ -14,6 +21,7 @@
 <div id="my_dataviz_main_user"></div>
 <div id="my_dataviz_gpu"></div>
 <div id="my_dataviz_flops"></div>
+<div id="test"></div>
 <script>
     function cloak_name(name) {
         return name
@@ -389,12 +397,22 @@
             .attr("transform",
                 "translate(" + margin.left + "," + margin.top + ")");
 
+        svg.append("text")
+            .attr("text-anchor", "end")
+            .attr("x", 0)
+            .attr("y", -20)
+            .text("Main user on each node")
+            .attr("text-anchor", "start")
         //Read the data
         d3.csv(csv_name, function (data) {
             var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
 
             data.forEach(function (d) {
                 d.time = format(d.time);
+                txt = d.all_user.replaceAll("'", '"')
+                // console.log(d.all_user,txt)
+                d.all_user = JSON.parse(txt);
+                // console.log(d.all_user);
             });
 
             xExtents = d3.extent(data, function (d) { return d.time; })
@@ -409,7 +427,7 @@
                 .domain(yExtents)
 
             users = d3.set(data.map(function (d) { return d.user; })).values().sort(d3.ascending)
-            
+
             var color = d3.scaleOrdinal()
                 .domain(users)
                 .range(d3.schemeCategory20);
@@ -431,11 +449,21 @@
                 tooltip.style("opacity", 1)
             }
             var mousemove = function (d) {
-                console.log('hi');
-                tooltip
-                    .html(d.time + "</br>Main user on " + d.node + " is " + d.user)
+
+                // console.log(d3.keys(d.all_user),d3.values(d.all_user));
+
+                table = "<table border=1 margin=1><thead><th>User</th><th>TFlops</th></thead><"
+                for (var key in d.all_user) {
+                    // check if the property/key is defined in the object itself, not in parent
+                    if (d.all_user.hasOwnProperty(key)) {
+                        table += "tr><td>" + key + "</td><td align=center>" + parseFloat(d.all_user[key]).toFixed(2) + "</td></tr>"
+                    }
+                }
+                table += "</table>"
+                html = tooltip
+                    .html(d.time.toLocaleString() + "</br>Main user on " + d.node + " is <b>" + d.user + "</b></br>TFlops distribution: " + table)
                     .style("left", (d3.mouse(this)[0] + 70) + "px")
-                    .style("top", (d3.mouse(this)[1]  + 650) + "px")
+                    .style("top", (d3.mouse(this)[1] + 650) + "px")
             }
             var mouseleave = function (d) {
                 tooltip.style("opacity", 0)
@@ -466,7 +494,7 @@
                 .attr("clip-path", "url(#clip_" + svg_id + ")")
 
             areaChart.selectAll()
-                .data(data, function (d) {  return d.time + ':' + d.node; })
+                .data(data, function (d) { return d.time + ':' + d.node; })
                 .enter()
                 .append("rect")
                 .attr("x", function (d) { return x(d.time) })
@@ -537,7 +565,7 @@
                 .style("fill", function (d) { return color(d) })
 
             // Add one dot in the legend for each name.
-            svg.selectAll("mylabels_"+svg_id)
+            svg.selectAll("mylabels_" + svg_id)
                 .data(users)
                 .enter()
                 .append("text")

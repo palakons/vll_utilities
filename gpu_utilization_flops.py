@@ -110,7 +110,7 @@ if True:
 # array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_gpu_whole.csv')
 
 gpu_whole = False
-t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list,input_file='test.log')
 # tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(t, data_list, data_nodes, user_list, flops_list,time_min_max=[len(t)*0,len(t)],is_counting_whole_gpu=gpu_whole)
 # array_to_csv(tt, user_list,n_gpu_online, total_tflops, util_by_user_per_time,outfile='/data/html/palakons/track_tflops.csv')
 
@@ -121,5 +121,7 @@ t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
 # pprint.pprint(user_list)
 
 
-main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes)
-per_node_to_csv_long( t,main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv")
+main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes,flops_list,output_tflops=not gpu_whole)
+# print("main_user_per_node")
+# pprint.pprint(main_user_per_node)
+per_node_to_csv_long( t,main_user_per_node, outfile="track_main_user_per_node.csv")

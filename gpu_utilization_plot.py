@@ -51,10 +51,9 @@ tflops_list = {
     "GPU-81fa636f-e5f3-07c4-2462-f9a343ee662e": 36,
 }
 
+gpu_whole = False
 t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
 
-main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes)
-per_node_to_csv_long( t,main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv")
 
 t, data_table, data_nodes = data_to_table(
     t, data_list, data_nodes, n_gpu_per_node=4
@@ -87,6 +86,8 @@ plot_gpu_utilization_per_user(
     util_by_user_per_time,
     save_location="/data/html/palakons/vll-gpu-user-latest.png",
 )
+main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes,flops_list,output_tflops=not gpu_whole)
+per_node_to_csv_long( t,main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv")
 
 gpu_whole = True
 t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)

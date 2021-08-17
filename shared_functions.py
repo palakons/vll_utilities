@@ -241,9 +241,9 @@ def remove_unmatched_utils(users, utils_org, output_tflops):
     return utils
 
 
-def process_user_util_zero(users, utils, flops, output_tflops=True):
+def process_user_util_zero(users, utils_org, flops, output_tflops=True):
     user_util = {}
-    utils_org = utils.copy()
+    utils = utils_org.copy()
     if len(flops) != len(utils):
         print("flops", len(flops), len(utils))
         print("flops", flops, (utils))
@@ -258,9 +258,9 @@ def process_user_util_zero(users, utils, flops, output_tflops=True):
 
     # aaa=  users.copy()
     # bbb = utils.copy()
-    utils = remove_unmatched_utils(users, utils, output_tflops)
+    if len(users) < len(utils):
+        utils = remove_unmatched_utils(users, utils, output_tflops)
 
-    # if len(users) < len(utils):
     #     need_remove = len(utils) - len(users)
     #     cache = 0
     #     for i in range(need_remove):
@@ -286,6 +286,9 @@ def process_user_util_zero(users, utils, flops, output_tflops=True):
     if len(users) < len(utils):
         print("why")
 
+    # print('user_util')
+    # pprint.pprint(utils)
+
     for i, user in enumerate(users):
         if user not in user_util:
             user_util[user] = utils[i]
@@ -294,6 +297,7 @@ def process_user_util_zero(users, utils, flops, output_tflops=True):
     # print(user_util)
     # if user_util[list(user_util.keys())[0]] == 0 and sum(utils_org)>0:
     #     print(user_util.keys(),users,utils_org)
+
     return user_util
 
 
@@ -339,7 +343,7 @@ def utlization_by_users(
                     output_tflops=not is_counting_whole_gpu,
                 )
                 # print("util_dict")
-                # pprint.pprint(util_dict)
+                pprint.pprint(util_dict)
                 for user in util_dict:
                     comma_split_users = user.split(",")
                     for (
@@ -534,47 +538,58 @@ def table_to_csv(t, data_table, data_nodes, n_gpu_per_node=4, outfile=None):
                 spamwriter.writerow(list([t[i], nodes[i_node], data_table[i_node][i]]))
 
 
-def divide_gpu_per_user(gpu_value, users, storage):
+def divide_gpu_per_user(data):
+    storage = {}
 
-    comma_split_users = users.split(",")
-    for (
-        user_extract
-    ) in (
-        comma_split_users
-    ):  # split utilization equally when multiple job on the same gpu
-        gpu_util_share = gpu_value / len(comma_split_users)
-        if user_extract in storage:
-            storage[user_extract] += gpu_util_share
-        else:
-            storage[user_extract] = gpu_util_share
+    for users in data:
+
+        gpu_value = data[users]
+        comma_split_users = users.split(",")
+        # print('comma_split_users',comma_split_users)
+        for (
+            user_extract
+        ) in (
+            comma_split_users
+        ):  # split utilization equally when multiple job on the same gpu
+            gpu_util_share = gpu_value / len(comma_split_users)
+            if user_extract in storage:
+                storage[user_extract] += gpu_util_share
+            else:
+                storage[user_extract] = gpu_util_share
     return storage
 
 
-def process_gpu_per_node(data_list, user_list, data_nodes, output_tflops=True):
+def process_gpu_per_node(
+    data_list, user_list, data_nodes, tflops_list, output_tflops=True
+):
     result = []
-    for time_idx in range(len(data_list)):
+    for time_idx in range(len(data_list)):  # one tiem step
         result_per_time = {}
-        for node in data_nodes:
-            # print("node", node)
-            storage = {}
-            if node in user_list[time_idx]:
-                data = data_list[time_idx][node]
-                if len(data_list[time_idx][node]) != len(user_list[time_idx][node]):
-                    # pprint.pprint(data_list[time_idx][node])
-                    # pprint.pprint(user_list[time_idx][node])
-                    data = remove_unmatched_utils(
-                        user_list[time_idx][node],
-                        data_list[time_idx][node],
-                        output_tflops,
-                    )
-                    # pprint.pprint(data_list[time_idx][node])
-                for gpu_idx in range(len(data)):
-                    storage = divide_gpu_per_user(
-                        data[gpu_idx],
-                        user_list[time_idx][node][gpu_idx],
-                        storage,
-                    )
-            result_per_time[node] = storage
+        for node in data_nodes:  # eahc node
+            if node in user_list[time_idx]:  # if node is being used
+                # data = data_list[time_idx][node]
+                # if len(data_list[time_idx][node]) != len(user_list[time_idx][node]):
+                #     # pprint.pprint(data_list[time_idx][node])
+                #     # pprint.pprint(user_list[time_idx][node])
+                #     data = remove_unmatched_utils(
+                #         user_list[time_idx][node],
+                #         data_list[time_idx][node],
+                #         output_tflops,
+                #     )
+                # # pprint.pprint(tflops_list)
+                # print("data b4", user_list[time_idx][node], data_list[time_idx][node])
+                data = process_user_util_zero(
+                    user_list[time_idx][node],
+                    data_list[time_idx][node],
+                    tflops_list[time_idx][node],
+                    output_tflops=output_tflops,
+                )
+                # print('data')
+                # pprint.pprint(data) #summarized TFlops per comma, user per node
+                storage = divide_gpu_per_user(data)
+                # print('data')
+                # pprint.pprint(data) #summarized TFlops per individual user per node
+                result_per_time[node] = storage
         result.append(result_per_time)
 
     return result
@@ -583,7 +598,7 @@ def process_gpu_per_node(data_list, user_list, data_nodes, output_tflops=True):
 def per_node_to_csv_long(tt, data, outfile=None):
     print("output: per_node_to_csv_long", outfile)
 
-    header = ["time", "node", "user"]
+    header = ["time", "node", "user", "all_user"]
     with open(outfile, "w", newline="") as csvfile:
         spamwriter = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
         spamwriter.writerow(header)
@@ -591,4 +606,6 @@ def per_node_to_csv_long(tt, data, outfile=None):
             for node in data[time_idx]:
                 if len(data[time_idx][node]) > 0:
                     max_user = max(data[time_idx][node], key=data[time_idx][node].get)
-                    spamwriter.writerow([tt[time_idx], node, max_user])
+                    spamwriter.writerow(
+                        [tt[time_idx], node, max_user, data[time_idx][node]]
+                    )
