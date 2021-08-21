@@ -29,7 +29,7 @@
     }
     function draw_stacked_chart(svg_id, y_label, csv_name) {
         // set the dimensions and margins of the graph
-        var margin = { top: 60, right: 230, bottom: 50, left: 50 },
+        var margin = { top: 60, right: 150, bottom: 50, left: 50 },
             width = 860 - margin.left - margin.right,
             height = 200 - margin.top - margin.bottom;
 
@@ -42,6 +42,14 @@
             .attr("transform",
                 "translate(" + margin.left + "," + margin.top + ")");
 
+        var borderPath = svg.append("rect")
+            .attr("x", - margin.left)
+            .attr("y", - margin.top)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("width", width + margin.left + margin.right)
+            .style("stroke", 'rgb(0,0,0)')
+            .style("fill", "none")
+            .style("stroke-width", 1);
         // Parse the Data
         d3.csv(csv_name, function (data) {
             var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
@@ -196,7 +204,7 @@
                 .enter()
                 .append("rect")
                 .attr("x", width + margin.left - 30)
-                .attr("y", function (d, i) { return 0 + i * (size + 5) }) // 100 is where the first dot appears. 25 is the distance between dots
+                .attr("y", function (d, i) { return - 40 + i * (size + 5) }) // 100 is where the first dot appears. 25 is the distance between dots
                 .attr("width", size)
                 .attr("height", size)
                 .style("fill", function (d) { return color(d) })
@@ -209,7 +217,7 @@
                 .enter()
                 .append("text")
                 .attr("x", width + margin.left - 30 + size * 1.2)
-                .attr("y", function (d, i) { return 0 + i * (size + 5) + (size / 2) }) // 100 is where the first dot appears. 25 is the distance between dots
+                .attr("y", function (d, i) { return - 40 + i * (size + 5) + (size / 2) }) // 100 is where the first dot appears. 25 is the distance between dots
                 .style("fill", function (d) { return color(d) })
                 .text(function (d) { return cloak_name(d) })
                 .attr("text-anchor", "left")
@@ -226,7 +234,7 @@
 
         // set the dimensions and margins of the graph
         var margin = { top: 30, right: 30, bottom: 30, left: 50 },
-            width = 660 - margin.left - margin.right,
+            width = 660 +80- margin.left - margin.right,
             height = 650 - margin.top - margin.bottom;
 
         // append the svg object to the body of the page
@@ -238,6 +246,14 @@
             .attr("transform",
                 "translate(" + margin.left + "," + margin.top + ")");
 
+        var borderPath = svg.append("rect")
+            .attr("x", - margin.left)
+            .attr("y", - margin.top)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("width", width + margin.left + margin.right)
+            .style("stroke", 'rgb(0,0,0)')
+            .style("fill", "none")
+            .style("stroke-width", 1);
         //Read the data
         d3.csv(csv_name, function (data) {
             var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
@@ -384,7 +400,7 @@
     function draw_main_user(svg_id, csv_name) {
 
         // set the dimensions and margins of the graph
-        var margin = { top: 30, right: 230, bottom: 30, left: 50 },
+        var margin = { top: 30, right: 150, bottom: 30, left: 50 },
             width = 860 - margin.left - margin.right,
             height = 250 - margin.top - margin.bottom;
 
@@ -397,10 +413,18 @@
             .attr("transform",
                 "translate(" + margin.left + "," + margin.top + ")");
 
+        var borderPath = svg.append("rect")
+            .attr("x", - margin.left)
+            .attr("y", - margin.top)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("width", width + margin.left + margin.right)
+            .style("stroke", 'rgb(0,0,0)')
+            .style("fill", "none")
+            .style("stroke-width", 1);
         svg.append("text")
             .attr("text-anchor", "end")
             .attr("x", 0)
-            .attr("y", -20)
+            .attr("y", -10)
             .text("Main user on each node")
             .attr("text-anchor", "start")
         //Read the data
