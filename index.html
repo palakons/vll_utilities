@@ -234,7 +234,7 @@
 
         // set the dimensions and margins of the graph
         var margin = { top: 30, right: 30, bottom: 30, left: 50 },
-            width = 660 +80- margin.left - margin.right,
+            width = 660 + 80 - margin.left - margin.right,
             height = 650 - margin.top - margin.bottom;
 
         // append the svg object to the body of the page
@@ -298,7 +298,7 @@
             }
             var mousemove = function (d) {
                 tooltip
-                    .html("Utilization status on " + d.time + "</br>" + d.node_gpu + ": " + ((isNaN(d.value)) ? "offline" : d.value.toFixed(0) + '%'))
+                    .html("Utilization status on " + d.time.toLocaleString() + "</br>" + d.node_gpu + ": " + ((isNaN(d.value)) ? "offline" : d.value.toFixed(0) + '%'))
                     .style("left", (d3.mouse(this)[0] + 70) + "px")
                     .style("top", (d3.mouse(this)[1]) + "px")
             }
@@ -476,11 +476,11 @@
 
                 // console.log(d3.keys(d.all_user),d3.values(d.all_user));
 
-                table = "<table border=1 margin=1><thead><th>User</th><th>TFlops</th></thead><"
+                table = "<table border=1 margin=1><thead><th>User</th><th>TFlops</th></thead>"
                 for (var key in d.all_user) {
                     // check if the property/key is defined in the object itself, not in parent
                     if (d.all_user.hasOwnProperty(key)) {
-                        table += "tr><td>" + key + "</td><td align=center>" + parseFloat(d.all_user[key]).toFixed(2) + "</td></tr>"
+                        table += "<tr><td>" + key + "</td><td align=center>" + parseFloat(d.all_user[key]).toFixed(2) + "</td></tr>"
                     }
                 }
                 table += "</table>"
