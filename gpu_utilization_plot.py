@@ -49,22 +49,34 @@ tflops_list = {
     "GPU-ab3e32cf-9c94-e85b-ff40-cb9a2b1eb725": 14.2,
     "GPU-52861426-4537-abc1-0d13-53c27a144152": 36,
     "GPU-81fa636f-e5f3-07c4-2462-f9a343ee662e": 36,
+    "GPU-1752fe77-b429-57bd-710d-838b77262e94":14.2,
+    "GPU-c16084b6-a103-083b-27af-dcb754a03ba2":14.2,
+    'GPU-d3978bc0-7f73-2078-3fe8-4e17861f7940':14.2,
+    'GPU-1bf76776-5945-6bb0-0033-84f4abaffbaa':14.2,
+    'GPU-93875c93-99c8-a4bd-04ad-ab495feb1382':14.2,
+    'GPU-73892c65-11ab-5167-e741-011efd6659f0':14.2,
+    'GPU-3b27ec93-b71d-6a65-6cdc-04be0077dfbd':14.2,
+    'GPU-26ed4582-9975-d3df-f3ba-c51f61c9bfd8':14.2,
+    'GPU-3a6450a4-da15-6490-a440-09a803184ab8':14.2,
+    'GPU-559fb878-260b-1a52-a0e8-1df706c75b73':14.2,
 }
 
 gpu_whole = False
 t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
-
+print("im'here")
 
 t, data_table, data_nodes = data_to_table(
     t, data_list, data_nodes, n_gpu_per_node=4
 )  # output flops
-fig = plot_gpu_utilization(
-    t,
-    data_table,  # shape (len(node_names) * n_gpu_per_node, len(time_steps))
-    n_gpu_per_node=4,
-    node_names=data_nodes,
-    target_path="/data/html/palakons/vll-gpu-30-min-latest.png",
-)
+print("im'here2")
+# fig = plot_gpu_utilization(
+#     t,
+#     data_table,  # shape (len(node_names) * n_gpu_per_node, len(time_steps))
+#     n_gpu_per_node=4,
+#     node_names=data_nodes,
+#     target_path="/data/html/palakons/vll-gpu-30-min-latest.png",
+# )
+# print("im'here3")
 
 tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
     t, data_list, data_nodes, user_list, flops_list, time_min_max=[len(t) * 0, len(t)]
@@ -79,13 +91,13 @@ array_to_csv(
     outfile="/data/html/palakons/track_tflops.csv",
 )
 
-plot_gpu_utilization_per_user(
-    tt,
-    n_gpu_online,
-    total_tflops,
-    util_by_user_per_time,
-    save_location="/data/html/palakons/vll-gpu-user-latest.png",
-)
+# plot_gpu_utilization_per_user(
+#     tt,
+#     n_gpu_online,
+#     total_tflops,
+#     util_by_user_per_time,
+#     save_location="/data/html/palakons/vll-gpu-user-latest.png",
+# )
 main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes,flops_list,output_tflops=not gpu_whole)
 per_node_to_csv_long( t,main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv")
 
