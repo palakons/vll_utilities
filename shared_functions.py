@@ -31,8 +31,8 @@ def plot_gpu_utilization(
     rescale = lambda y: (y - 0) / (np.max(gpu_util) - 0)
     print("im here 4")
     for i in range(len(axs)):
-        ax=  axs[i]
-        print('axis',i)
+        ax = axs[i]
+        print("axis", i)
         ax.grid(which="major", axis="x")
 
         ax.spines["top"].set_visible(False)
@@ -75,6 +75,7 @@ def read_gpu_log_2(
     tflops_list,
     input_file="/home2/palakons/track_cluster_usage.log",
     n_gpu_per_node=4,
+    how_many_days_ago=None,
 ):
     print("open", input_file)
     t = []
@@ -84,25 +85,37 @@ def read_gpu_log_2(
     user_list = []
     flops_list = []
     f = open(input_file, "r")
-    start_line=-5
-    data, users,flops = None,None,None
-    is_failed= False
+    start_line = -5
+    data, users, flops = None, None, None
+    is_failed = False
+    tod = datetime.datetime.now()
     for i, line in enumerate(f):
+        if (
+            len(line.split()) > 1
+            and len(line.split()[-1]) == 10
+            and line.split()[-1].isnumeric()
+        ):
+            # print('problem',i,line)
+
+            start_line = i
+            line = line.split()[-1]
         try:
             int(line)
-            #start line 1
+            # start line 1
             start_line = i
             # print('startline',start_line,line)
         except:
             pass
-        if i==start_line:  # time
+        if i == start_line:  # time
             try:
-                t_data=datetime.datetime.fromtimestamp(int(line))
+                t_data = datetime.datetime.fromtimestamp(int(line))
             except:
                 is_failed = True
                 print(f"error time: {i} ")
-        elif i ==start_line+1:  # gpu id
-            # print(line)
+        elif i == start_line + 1 and (how_many_days_ago is  None
+                    or t_data > tod - datetime.timedelta(days=how_many_days_ago)):  # gpu id
+            if line.find("GPU") == -1:
+                print("start_line+1:  # gpu id error", i, line)
             try:
                 flops = process_gpuid_string(line, tflops_list)
             except:
@@ -110,7 +123,10 @@ def read_gpu_log_2(
                 print(f"error gpu: {i} ")
 
             # pass
-        elif i==start_line+2:
+        elif i == start_line + 2 and (how_many_days_ago is  None
+                    or t_data > tod - datetime.timedelta(days=how_many_days_ago)):
+            if line.find("GPU") != -1:
+                print("start_line+2:  # util string error", i, line)
             try:
                 data, users = process_util_string_with_user(line)
                 data_nodes = data_nodes.union(set(data.keys()))
@@ -121,14 +137,16 @@ def read_gpu_log_2(
                     flops_list.append(flops)
                     t.append(t_data)
                 else:
-                    print('not add',)
+                    print(
+                        "not add",
+                    )
             except:
                 print(f"error util: {i} ")
             # print(list(data.keys()))
-            is_failed=False
-        
+            is_failed = False
+
     data_nodes = list(data_nodes)
-    data_nodes.sort()
+    data_nodes.sort()  # to update to handle both "v01" and "v1"
 
     return t, data_list, data_nodes, user_list, flops_list
 
@@ -138,22 +156,27 @@ def process_util_string_with_user(line):
     data = {}
     users = {}
     # print(line)
-    pattern = r" \| "
+
+    pattern = r"Cluster v[0-9]{1,2} Cluster "
     mod_string = re.sub(pattern, " ", line)
+    pattern = r" \| "
+    mod_string = re.sub(pattern, " ", mod_string)
     # print(mod_string)
     token = mod_string.split()
-    # print(token)
+    # print("token", token)
     current_token = ""
     for tag in token:
         if tag[0] == "v":
             current_token = tag
+            if len(current_token) == 2:
+                current_token = "v0" + current_token[-1:]
         elif tag[0].isdigit():  # number
             if current_token not in data:
                 data[current_token] = [int(tag)]
             else:
                 data[current_token].append(int(tag))
         else:  # name
-            if tag!='':
+            if tag != "":
                 if current_token not in users:
                     users[current_token] = [tag]
                 else:
@@ -190,13 +213,19 @@ def process_util_string(line):
 
 def process_gpuid_string(line, tflops_list):
     data = {}
-    pattern = r"v[0-9]{2}: NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running."
-    
+    pattern = r"v[0-9]{1,2}: NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running."
     mod_string = re.sub(pattern, "", line)
+
     pattern = r"Unable to determine the device handle for gpu 0000:[0-9]{2}:00.0: Unknown Error"
-    
     mod_string = re.sub(pattern, "", mod_string)
+
     pattern = r"Unable to determine the device handle for gpu 0000:[0-9]{2}:00.0: GPU is lost.  Reboot the system to recover this GPU"
+    mod_string = re.sub(pattern, "", mod_string)
+
+    pattern = r"v[0-9]{1,2}: Failed to initialize NVML: Driver/library version mismatch"
+    mod_string = re.sub(pattern, "", mod_string)
+
+    pattern = r"v[0-9]{1,2}: No devices found."
     mod_string = re.sub(pattern, "", mod_string)
 
     token = mod_string.split()
@@ -206,6 +235,8 @@ def process_gpuid_string(line, tflops_list):
     for tag in token:
         if tag[0] == "v":
             current_token = tag[:-1]
+            if len(current_token) == 2:
+                current_token = "v0" + current_token[-1:]
         else:
             flop = 0
             try:
@@ -222,8 +253,8 @@ def process_gpuid_string(line, tflops_list):
     if len(id_not_found) > 0:
         print(f"error: flops not found: {id_not_found}")
         for gpuid in id_not_found:
-            if gpuid[:3]!='GPU':
-                raise 
+            if gpuid[:3] != "GPU":
+                raise
     return data
 
 
@@ -325,11 +356,13 @@ def process_user_util_zero(users, utils_org, flops, output_tflops=True):
 
     if len(users) < len(utils):
         print("why")
+    # print(len(users) ,'len(users) < len(utils)',len(utils),users,utils)
 
     # print('user_util')
     # pprint.pprint(utils)
 
     for i, user in enumerate(users):
+        # print("user",user)
         if user not in user_util:
             user_util[user] = utils[i]
         else:
@@ -377,16 +410,17 @@ def utlization_by_users(
                 # print(user_list[i])
                 # print(t[time_range[i]])
                 # print('lensss',len(user_list[i][node]),len(data_list[i][node]),len(flops_list[i][node]))
-                util_dict=None
-                if len(data_list[i][node])!=len(flops_list[i][node]):
+                util_dict = None
+                # print(data_list[i].keys())
+                if len(data_list[i][node]) != len(flops_list[i][node]):
                     util_dict = {}
                 else:
                     util_dict = process_user_util_zero(
-                    user_list[i][node],
-                    data_list[i][node],
-                    flops_list[i][node],
-                    output_tflops=not is_counting_whole_gpu,
-                )
+                        user_list[i][node],
+                        data_list[i][node],
+                        flops_list[i][node],
+                        output_tflops=not is_counting_whole_gpu,
+                    )
                 # print("util_dict",util_dict)
                 # {'penguin': 4}
                 # pprint.pprint(util_dict)
@@ -409,13 +443,13 @@ def utlization_by_users(
 
                         if user_extract in total_utilization_per_time:
                             total_utilization_per_time[user_extract] += gpu_util_share
-                        elif user_extract !='':
+                        elif user_extract != "":
                             total_utilization_per_time[user_extract] = gpu_util_share
 
         for user in total_utilization_per_time:
             total_utilization_per_time[user] /= time_diff
-            if user=='':
-                print('total_utilization_per_time',total_utilization_per_time)
+            if user == "":
+                print("total_utilization_per_time", total_utilization_per_time)
         util_by_user_per_time.append(total_utilization_per_time)
     print(
         f"since start tracking, folow users in the tracking: {len(total_utilization.keys())}"
@@ -482,7 +516,7 @@ def cloak_names(names):
 
 def util_by_user_to_table(utlization):
     all_names = sorted(list(set([b for a in utlization for b in list(a.keys())])))
-    print('all names',all_names)
+    print("all names", all_names)
     output = dict((k, []) for k in all_names)
     for util in utlization:
         data = dict.fromkeys(all_names, 0)
@@ -618,7 +652,7 @@ def process_gpu_per_node(
     result = []
     for time_idx in range(len(data_list)):  # one tiem step
         result_per_time = {}
-        
+
         for node in data_nodes:  # eahc node
             if node in user_list[time_idx]:  # if node is being used
                 # data = data_list[time_idx][node]
@@ -632,15 +666,15 @@ def process_gpu_per_node(
                 #     )
                 # # pprint.pprint(tflops_list)
                 # print("data b4", user_list[time_idx][node], data_list[time_idx][node])
-                if len(data_list[time_idx][node])!=len(tflops_list[time_idx][node]):
-                    data={}
+                if len(data_list[time_idx][node]) != len(tflops_list[time_idx][node]):
+                    data = {}
                 else:
                     data = process_user_util_zero(
-                    user_list[time_idx][node],
-                    data_list[time_idx][node],
-                    tflops_list[time_idx][node],
-                    output_tflops=output_tflops,
-                )
+                        user_list[time_idx][node],
+                        data_list[time_idx][node],
+                        tflops_list[time_idx][node],
+                        output_tflops=output_tflops,
+                    )
                 # print('data',data)
                 # pprint.pprint(data) #summarized TFlops per comma, user per node
                 storage = divide_gpu_per_user(data)
@@ -663,9 +697,11 @@ def per_node_to_csv_long(tt, data, outfile=None):
             for time_idx in range(len(tt)):
                 for node in data[time_idx]:
                     if len(data[time_idx][node]) > 0:
-                        max_user = max(data[time_idx][node], key=data[time_idx][node].get)
+                        max_user = max(
+                            data[time_idx][node], key=data[time_idx][node].get
+                        )
                         spamwriter.writerow(
                             [tt[time_idx], node, max_user, data[time_idx][node]]
                         )
     else:
-        print('no csv, diff data')
+        print("no csv, diff data")

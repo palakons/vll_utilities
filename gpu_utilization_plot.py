@@ -49,21 +49,42 @@ tflops_list = {
     "GPU-ab3e32cf-9c94-e85b-ff40-cb9a2b1eb725": 14.2,
     "GPU-52861426-4537-abc1-0d13-53c27a144152": 36,
     "GPU-81fa636f-e5f3-07c4-2462-f9a343ee662e": 36,
-    "GPU-1752fe77-b429-57bd-710d-838b77262e94":14.2,
-    "GPU-c16084b6-a103-083b-27af-dcb754a03ba2":14.2,
-    'GPU-d3978bc0-7f73-2078-3fe8-4e17861f7940':14.2,
-    'GPU-1bf76776-5945-6bb0-0033-84f4abaffbaa':14.2,
-    'GPU-93875c93-99c8-a4bd-04ad-ab495feb1382':14.2,
-    'GPU-73892c65-11ab-5167-e741-011efd6659f0':14.2,
-    'GPU-3b27ec93-b71d-6a65-6cdc-04be0077dfbd':14.2,
-    'GPU-26ed4582-9975-d3df-f3ba-c51f61c9bfd8':14.2,
-    'GPU-3a6450a4-da15-6490-a440-09a803184ab8':14.2,
-    'GPU-559fb878-260b-1a52-a0e8-1df706c75b73':14.2,
+    "GPU-1752fe77-b429-57bd-710d-838b77262e94": 14.2,
+    "GPU-c16084b6-a103-083b-27af-dcb754a03ba2": 14.2,
+    "GPU-d3978bc0-7f73-2078-3fe8-4e17861f7940": 14.2,
+    "GPU-1bf76776-5945-6bb0-0033-84f4abaffbaa": 14.2,
+    "GPU-93875c93-99c8-a4bd-04ad-ab495feb1382": 14.2,
+    "GPU-73892c65-11ab-5167-e741-011efd6659f0": 14.2,
+    "GPU-3b27ec93-b71d-6a65-6cdc-04be0077dfbd": 14.2,
+    "GPU-26ed4582-9975-d3df-f3ba-c51f61c9bfd8": 14.2,
+    "GPU-3a6450a4-da15-6490-a440-09a803184ab8": 14.2,
+    "GPU-559fb878-260b-1a52-a0e8-1df706c75b73": 14.2,
+    "GPU-8fe7d644-812b-31bb-902e-d183108bc3f2": 14.2,
+    "GPU-1f720ddc-493f-3ce2-e13e-0068f6958ec7": 14.2,
+    "GPU-7789ab1e-18de-e06b-3c24-6add1648ab9a": 14.2,
+    "GPU-d9baa4a3-b6c7-5e82-01b7-94188336f9fa": 14.2,
+    "GPU-fc2f96c8-0125-9573-6b7a-b01f1bf75e33": 14.2,
+    "GPU-19b1bc18-bd4e-16f5-e063-3c1471297762": 14.2,  # 2080Ti https://irendering.net/what-are-teraflops-in-rtx-2080-ti/#:~:text=Nvidia's%20GeForce%20RTX%202080%20Ti,an%20impressive%20sign%20of%20growth.
+    "GPU-544fceb6-3ac8-bcc5-d3e7-ca1e5c797a96": 19.17,  # A4000 https://www.techpowerup.com/gpu-specs/rtx-a4000.c3756
+    "GPU-e81377be-dc65-b031-ef37-b6ad2c4bab90": 19.17,
+    "GPU-21191f4d-426f-0709-66f8-85c72ef3da5c": 19.17,
+    "GPU-a5811ce1-3bc3-baa0-4c85-e406011f6598": 19.17,
+    "GPU-f685352a-507f-3087-9805-c89ca83403a2": 14.2,
+    "GPU-39ed36f1-f26d-a0d0-ac7f-1d61a7a92f0c": 36,
+    "GPU-62752c0c-d2f1-835f-5e3b-6a80d162914b": 36,
+    "GPU-23e9bb8d-0191-0256-9efb-0087e42a95b7": 36,
+    "GPU-e24ca2dc-4a04-6963-34e9-e0fb712d4790": 36,
+    "GPU-5eafeb54-8429-7d72-cbac-b8177cc623e0": 36,
+    "GPU-971dd3c0-ebf3-4601-0902-e22622d513de": 36,
+    "GPU-e46a9552-0385-4593-1ec3-7734bb353438": 36,
+    "GPU-b1053fa5-5227-4134-29fd-3f8c08aaa263": 36,
+    "GPU-20f97ca4-232b-cd52-5385-c45abab9bdad": 36,
 }
 
 gpu_whole = False
-t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
-print("im'here")
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list, how_many_days_ago=30)
+print("im'here",len(t))
+# print(data_nodes)
 
 t, data_table, data_nodes = data_to_table(
     t, data_list, data_nodes, n_gpu_per_node=4
@@ -81,6 +102,7 @@ print("im'here2")
 tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
     t, data_list, data_nodes, user_list, flops_list, time_min_max=[len(t) * 0, len(t)]
 )
+# print('tt',tt)
 
 array_to_csv(
     tt,
@@ -98,16 +120,26 @@ array_to_csv(
 #     util_by_user_per_time,
 #     save_location="/data/html/palakons/vll-gpu-user-latest.png",
 # )
-main_user_per_node = process_gpu_per_node(data_list, user_list, data_nodes,flops_list,output_tflops=not gpu_whole)
-per_node_to_csv_long( t,main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv")
+main_user_per_node = process_gpu_per_node(
+    data_list, user_list, data_nodes, flops_list, output_tflops=not gpu_whole
+)
+per_node_to_csv_long(
+    t, main_user_per_node, outfile="/data/html/palakons/track_main_user_per_node.csv"
+)
 
 gpu_whole = True
-t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list)
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list,how_many_days_ago=30)
 
 t, data_table, data_nodes = data_to_table(
     t, data_list, data_nodes, n_gpu_per_node=4, pad_value=None
 )  # output flops
-table_to_csv(t, data_table, data_nodes,n_gpu_per_node=4,outfile='/data/html/palakons/track_heatmap.csv')
+table_to_csv(
+    t,
+    data_table,
+    data_nodes,
+    n_gpu_per_node=4,
+    outfile="/data/html/palakons/track_heatmap.csv",
+)
 
 
 tt, n_gpu_online, total_tflops, util_by_user_per_time = utlization_by_users(
@@ -139,4 +171,3 @@ plot_gpu_utilization_per_user(
     save_location="/data/html/palakons/vll-gpu-whole-latest.png",
     is_counting_whole_gpu=gpu_whole,
 )
-
