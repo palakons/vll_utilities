@@ -79,11 +79,25 @@ tflops_list = {
     "GPU-e46a9552-0385-4593-1ec3-7734bb353438": 36,
     "GPU-b1053fa5-5227-4134-29fd-3f8c08aaa263": 36,
     "GPU-20f97ca4-232b-cd52-5385-c45abab9bdad": 36,
+    "GPU-845a7345-cfee-d136-c413-38a7c5841e59": 14.2,
+    "GPU-389c8a87-e2eb-4cc0-c9dd-a08a98cae8bd": 14.2,
+    "GPU-adb4f661-68d9-fbc5-c90d-9a7fe28e1165": 19.17,
+    "GPU-bfffff39-e2da-c87a-5a45-115da1764e3b": 19.17,
+    "GPU-81c27bf1-9baf-ba3f-aa78-673dabce72fe": 19.17,
+    "GPU-a1dd7619-e9bc-62a6-4e17-a94f0aaf1787": 14.2,
+    "GPU-32b3d712-965c-1bff-c5b0-ad9d71eae77e": 19.17,
+    "GPU-1c8afcd2-19a0-a9a2-2794-817ebd4f5972": 19.17,
+    "GPU-e52c4d41-6124-0781-4adf-93013b7d2bbc": 19.17,
+    "GPU-b653cc78-4374-bf47-d49b-f52562db3be3": 14.2,
+    "GPU-e835c0f5-eb5d-4a36-c95d-55756d4cd4d7": 19.17,
+    
 }
 
 gpu_whole = False
-t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list, how_many_days_ago=30)
-print("im'here",len(t))
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(
+    tflops_list, how_many_days_ago=30
+)
+print("im'here", len(t))
 # print(data_nodes)
 
 t, data_table, data_nodes = data_to_table(
@@ -128,7 +142,9 @@ per_node_to_csv_long(
 )
 
 gpu_whole = True
-t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(tflops_list,how_many_days_ago=30)
+t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(
+    tflops_list, how_many_days_ago=30
+)
 
 t, data_table, data_nodes = data_to_table(
     t, data_list, data_nodes, n_gpu_per_node=4, pad_value=None

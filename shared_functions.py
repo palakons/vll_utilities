@@ -213,19 +213,19 @@ def process_util_string(line):
 
 def process_gpuid_string(line, tflops_list):
     data = {}
-    pattern = r"v[0-9]{1,2}: NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running."
+    pattern = r"v[0-9a-fA-F]{1,2}: NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running."
     mod_string = re.sub(pattern, "", line)
 
-    pattern = r"Unable to determine the device handle for gpu 0000:[0-9]{2}:00.0: Unknown Error"
+    pattern = r"Unable to determine the device handle for gpu 0000:[0-9a-fA-F]{2}:00.0: Unknown Error"
     mod_string = re.sub(pattern, "", mod_string)
 
-    pattern = r"Unable to determine the device handle for gpu 0000:[0-9]{2}:00.0: GPU is lost.  Reboot the system to recover this GPU"
+    pattern = r"Unable to determine the device handle for gpu 0000:[0-9a-fA-F]{2}:00.0: GPU is lost.  Reboot the system to recover this GPU"
     mod_string = re.sub(pattern, "", mod_string)
 
-    pattern = r"v[0-9]{1,2}: Failed to initialize NVML: Driver/library version mismatch"
+    pattern = r"v[0-9a-fA-F]{1,2}: Failed to initialize NVML: Driver/library version mismatch"
     mod_string = re.sub(pattern, "", mod_string)
 
-    pattern = r"v[0-9]{1,2}: No devices found."
+    pattern = r"v[0-9a-fA-F]{1,2}: No devices found."
     mod_string = re.sub(pattern, "", mod_string)
 
     token = mod_string.split()
