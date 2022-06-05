@@ -90,7 +90,8 @@ tflops_list = {
     "GPU-e52c4d41-6124-0781-4adf-93013b7d2bbc": 19.17,
     "GPU-b653cc78-4374-bf47-d49b-f52562db3be3": 14.2,
     "GPU-e835c0f5-eb5d-4a36-c95d-55756d4cd4d7": 19.17,
-    
+    "GPU-39d2a507-e565-c0d6-5967-eaefc3aad993": 14.2,  # ?????? 2080??? v20
+    "GPU-04982d58-49e8-9638-5a8e-0dfacefd6bf2": 14.2,  # ?????? 2080??? v20
 }
 
 gpu_whole = False

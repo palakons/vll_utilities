@@ -406,8 +406,7 @@ def utlization_by_users(
         total_utilization_per_node = {}
         time_diff = time_diff_from_idx(t, [i])
         for node in data_nodes:  # each node: v01, etc.
-            if node in user_list[i]:  # if vxx si online at time i
-                # print(user_list[i])
+            if node in user_list[i] and node in flops_list[i]:  # if vxx si online at time i
                 # print(t[time_range[i]])
                 # print('lensss',len(user_list[i][node]),len(data_list[i][node]),len(flops_list[i][node]))
                 util_dict = None
@@ -445,6 +444,10 @@ def utlization_by_users(
                             total_utilization_per_time[user_extract] += gpu_util_share
                         elif user_extract != "":
                             total_utilization_per_time[user_extract] = gpu_util_share
+            else:
+                print('utlization_by_users,cannot find flops',node,'at time',t[i])
+                # print(user_list[i])
+                # print(flops_list[i])
 
         for user in total_utilization_per_time:
             total_utilization_per_time[user] /= time_diff
@@ -654,7 +657,7 @@ def process_gpu_per_node(
         result_per_time = {}
 
         for node in data_nodes:  # eahc node
-            if node in user_list[time_idx]:  # if node is being used
+            if node in user_list[time_idx]and node in tflops_list[time_idx]:  # if node is being used
                 # data = data_list[time_idx][node]
                 # if len(data_list[time_idx][node]) != len(user_list[time_idx][node]):
                 #     # pprint.pprint(data_list[time_idx][node])
@@ -681,6 +684,10 @@ def process_gpu_per_node(
                 # print('data')
                 # pprint.pprint(data) #summarized TFlops per individual user per node
                 result_per_time[node] = storage
+            else:
+                print('process_gpu_per_node: cannot find flops',node,'at time_idx',time_idx)
+                # print(user_list[i])
+                # print(flops_list[i])
         result.append(result_per_time)
 
     return result
