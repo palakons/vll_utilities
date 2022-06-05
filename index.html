@@ -17,9 +17,13 @@
 <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
 
 <!-- Create a div where the graph will take place -->
+[<a href='./track_heatmap.csv'>CSV</a>]
 <div id="my_dataviz_node_heatmap"></div>
+[<a href='./track_main_user_per_node.csv'>CSV</a>]
 <div id="my_dataviz_main_user"></div>
+[<a href='./track_gpu_whole.csv'>CSV</a>]
 <div id="my_dataviz_gpu"></div>
+[<a href='./track_tflops.csv'>CSV</a>]
 <div id="my_dataviz_flops"></div>
 <div id="test"></div>
 <script>
@@ -90,7 +94,7 @@
                 .attr("text-anchor", "end")
                 .attr("x", width)
                 .attr("y", height + 40)
-                .text("Time");
+                .text("UTC Time");
 
             // Add Y axis label:
             svg.append("text")
@@ -102,7 +106,7 @@
             // Add Y axis
             var y = d3.scaleLinear()
                 .domain(d3.extent(stackedData[stackedData.length - 1], function (d) { return d[1] * 1.2; }))
-                .range([height, 0]);
+                .range([height, 0]).domain([0, d3.max(stackedData[stackedData.length - 1], function (d) { return d[1] * 1.2; })]);
             svg.append("g")
                 .call(d3.axisLeft(y).ticks(5))
 

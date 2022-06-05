@@ -98,7 +98,8 @@ gpu_whole = False
 t, data_list, data_nodes, user_list, flops_list = read_gpu_log_2(
     tflops_list, how_many_days_ago=30
 )
-print("im'here", len(t))
+print("im'here, len(time step)", len(t))
+
 # print(data_nodes)
 
 t, data_table, data_nodes = data_to_table(
@@ -127,7 +128,6 @@ array_to_csv(
     util_by_user_per_time,
     outfile="/data/html/palakons/track_tflops.csv",
 )
-
 # plot_gpu_utilization_per_user(
 #     tt,
 #     n_gpu_online,
@@ -177,6 +177,7 @@ array_to_csv(
     util_by_user_per_time,
     outfile="/data/html/palakons/track_gpu_whole.csv",
 )
+exit()
 # print(len(tt),len(n_gpu_online),len(total_tflops),len(util_by_user_per_time))
 # print(n_gpu_online,total_tflops,util_by_user_per_time)
 

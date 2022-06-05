@@ -94,48 +94,63 @@ def read_gpu_log_2(
             len(line.split()) > 1
             and len(line.split()[-1]) == 10
             and line.split()[-1].isnumeric()
-        ):
+        ):  # if it is the date/time (in unix epoch format) line
             # print('problem',i,line)
-
             start_line = i
             line = line.split()[-1]
-        try:
+        try:  # if convertable to int, then start line here
             int(line)
             # start line 1
             start_line = i
             # print('startline',start_line,line)
         except:
             pass
-        if i == start_line:  # time
-            try:
+        if i == start_line:  # time, if this is the "time" line
+            try:  # convert to datetime format
                 t_data = datetime.datetime.fromtimestamp(int(line))
             except:
                 is_failed = True
-                print(f"error time: {i} ")
-        elif i == start_line + 1 and (how_many_days_ago is  None
-                    or t_data > tod - datetime.timedelta(days=how_many_days_ago)):  # gpu id
+                print(f"error time: line {i} content {line}")
+        elif i == start_line + 1 and (
+            how_many_days_ago is None
+            or t_data > tod - datetime.timedelta(days=how_many_days_ago)
+        ):  # if it's one line after date/time, and still in display range (e.g. one month before today)
+            # the gpu id line
             if line.find("GPU") == -1:
                 print("start_line+1:  # gpu id error", i, line)
             try:
                 flops = process_gpuid_string(line, tflops_list)
+                # print('flops',flops) #{'v01': [{'gpuid': 'GPU-ss', 'flop': 14.2}, {'gpuid': 'GPU-dd, 'flop': 14.2}, {'gpuid': 'GPU-ff', 'flop': 14.2}, {'gpuid': 'GPU-hh', 'flop': 14.2}], }
             except:
                 is_failed = True
                 print(f"error gpu: {i} ")
 
             # pass
-        elif i == start_line + 2 and (how_many_days_ago is  None
-                    or t_data > tod - datetime.timedelta(days=how_many_days_ago)):
-            if line.find("GPU") != -1:
+        elif i == start_line + 2 and (
+            how_many_days_ago is None
+            or t_data > tod - datetime.timedelta(days=how_many_days_ago)
+        ):  # if it's two lines after date/time (the user line)
+            if line.find("GPU") != -1:  # errir if thet is "GPU" in this line!
                 print("start_line+2:  # util string error", i, line)
             try:
                 data, users = process_util_string_with_user(line)
-                data_nodes = data_nodes.union(set(data.keys()))
+                # print('data',data) #data {'v01': [0, 29, 15, 0], }
+                # print('users',users)#users {'v01': ['mint', 'mint'], }
+                data_nodes = data_nodes.union(set(data.keys()))  # list ofpossible nodes
 
-                if not is_failed :
+                if not is_failed:
                     data_list.append(data)
                     user_list.append(users)
                     flops_list.append(flops)
                     t.append(t_data)
+
+                    diff = set.difference(set(data.keys()), set(flops.keys()))
+                    if len(diff) > 0:
+                        print(
+                            t_data,
+                            ":read_gpu_log_2:there are some missing GPUID/flops data",
+                            diff,
+                        )
                 else:
                     print(
                         "not add",
@@ -222,7 +237,9 @@ def process_gpuid_string(line, tflops_list):
     pattern = r"Unable to determine the device handle for gpu 0000:[0-9a-fA-F]{2}:00.0: GPU is lost.  Reboot the system to recover this GPU"
     mod_string = re.sub(pattern, "", mod_string)
 
-    pattern = r"v[0-9a-fA-F]{1,2}: Failed to initialize NVML: Driver/library version mismatch"
+    pattern = (
+        r"v[0-9a-fA-F]{1,2}: Failed to initialize NVML: Driver/library version mismatch"
+    )
     mod_string = re.sub(pattern, "", mod_string)
 
     pattern = r"v[0-9a-fA-F]{1,2}: No devices found."
@@ -386,9 +403,12 @@ def time_diff_from_idx(t, time_range):
 def utlization_by_users(
     t,
     data_list,
+    # print('data',data) #data {'v01': [0, 29, 15, 0], }
     data_nodes,
     user_list,
+    # print('users',users)#users {'v01': ['mint', 'mint'], }
     flops_list,
+    # print('flops',flops) #{'v01': [{'gpuid': 'GPU-ss', 'flop': 14.2}, {'gpuid': 'GPU-dd, 'flop': 14.2}, {'gpuid': 'GPU-ff', 'flop': 14.2}, {'gpuid': 'GPU-hh', 'flop': 14.2}], }
     time_min_max=None,
     is_counting_whole_gpu=False,
 ):
@@ -406,48 +426,60 @@ def utlization_by_users(
         total_utilization_per_node = {}
         time_diff = time_diff_from_idx(t, [i])
         for node in data_nodes:  # each node: v01, etc.
-            if node in user_list[i] and node in flops_list[i]:  # if vxx si online at time i
-                # print(t[time_range[i]])
-                # print('lensss',len(user_list[i][node]),len(data_list[i][node]),len(flops_list[i][node]))
-                util_dict = None
-                # print(data_list[i].keys())
-                if len(data_list[i][node]) != len(flops_list[i][node]):
-                    util_dict = {}
-                else:
-                    util_dict = process_user_util_zero(
-                        user_list[i][node],
-                        data_list[i][node],
-                        flops_list[i][node],
-                        output_tflops=not is_counting_whole_gpu,
-                    )
-                # print("util_dict",util_dict)
-                # {'penguin': 4}
-                # pprint.pprint(util_dict)
-                for user in util_dict:
-                    comma_split_users = user.split(",")
-                    for (
-                        user_extract
-                    ) in (
-                        comma_split_users
-                    ):  # split utilization equally when multiple job on the same gpu
-                        # if user_extract =='':
-                        #     print('empty user_extract',total_utilization.keys())
-                        gpu_util_share = (
-                            util_dict[user] / len(comma_split_users) * time_diff
+            if node in user_list[i]:  # if vxx si online at time i
+                if node in flops_list[i]:
+                    # print(t[time_range[i]])
+                    # print('lensss',len(user_list[i][node]),len(data_list[i][node]),len(flops_list[i][node]))
+                    util_dict = None
+                    # print(data_list[i].keys())
+                    if len(data_list[i][node]) != len(flops_list[i][node]):
+                        util_dict = {}
+                    else:
+                        util_dict = process_user_util_zero(
+                            user_list[i][node],
+                            data_list[i][node],
+                            flops_list[i][node],
+                            output_tflops=not is_counting_whole_gpu,
                         )
-                        if user_extract in total_utilization:
-                            total_utilization[user_extract] += gpu_util_share
-                        else:
-                            total_utilization[user_extract] = gpu_util_share
+                    # print("util_dict",util_dict)
+                    # {'penguin': 4}
+                    # pprint.pprint(util_dict)
+                    for user in util_dict:
+                        comma_split_users = user.split(",")
+                        for (
+                            user_extract
+                        ) in (
+                            comma_split_users
+                        ):  # split utilization equally when multiple job on the same gpu
+                            # if user_extract =='':
+                            #     print('empty user_extract',total_utilization.keys())
+                            gpu_util_share = (
+                                util_dict[user] / len(comma_split_users) * time_diff
+                            )
+                            if user_extract in total_utilization:
+                                total_utilization[user_extract] += gpu_util_share
+                            else:
+                                total_utilization[user_extract] = gpu_util_share
 
-                        if user_extract in total_utilization_per_time:
-                            total_utilization_per_time[user_extract] += gpu_util_share
-                        elif user_extract != "":
-                            total_utilization_per_time[user_extract] = gpu_util_share
-            else:
-                print('utlization_by_users,cannot find flops',node,'at time',t[i])
-                # print(user_list[i])
-                # print(flops_list[i])
+                            if user_extract in total_utilization_per_time:
+                                total_utilization_per_time[
+                                    user_extract
+                                ] += gpu_util_share
+                            elif user_extract != "":
+                                total_utilization_per_time[
+                                    user_extract
+                                ] = gpu_util_share
+                else:
+                    print(
+                        t[i],
+                        "utlization_by_users,cannot find flops",
+                        node,
+                        "at time",
+                    )
+                    # print("data_list", data_list[i].keys())
+                    # print("flops_list", flops_list[i].keys())
+                    # print(user_list[i])
+                    # print(flops_list[i])
 
         for user in total_utilization_per_time:
             total_utilization_per_time[user] /= time_diff
@@ -657,37 +689,44 @@ def process_gpu_per_node(
         result_per_time = {}
 
         for node in data_nodes:  # eahc node
-            if node in user_list[time_idx]and node in tflops_list[time_idx]:  # if node is being used
-                # data = data_list[time_idx][node]
-                # if len(data_list[time_idx][node]) != len(user_list[time_idx][node]):
-                #     # pprint.pprint(data_list[time_idx][node])
-                #     # pprint.pprint(user_list[time_idx][node])
-                #     data = remove_unmatched_utils(
-                #         user_list[time_idx][node],
-                #         data_list[time_idx][node],
-                #         output_tflops,
-                #     )
-                # # pprint.pprint(tflops_list)
-                # print("data b4", user_list[time_idx][node], data_list[time_idx][node])
-                if len(data_list[time_idx][node]) != len(tflops_list[time_idx][node]):
-                    data = {}
+            if (
+                node in user_list[time_idx] 
+            ):  # if node is being used
+                if node in tflops_list[time_idx]:
+                    # data = data_list[time_idx][node]
+                    # if len(data_list[time_idx][node]) != len(user_list[time_idx][node]):
+                    #     # pprint.pprint(data_list[time_idx][node])
+                    #     # pprint.pprint(user_list[time_idx][node])
+                    #     data = remove_unmatched_utils(
+                    #         user_list[time_idx][node],
+                    #         data_list[time_idx][node],
+                    #         output_tflops,
+                    #     )
+                    # # pprint.pprint(tflops_list)
+                    # print("data b4", user_list[time_idx][node], data_list[time_idx][node])
+                    if len(data_list[time_idx][node]) != len(tflops_list[time_idx][node]):
+                        data = {}
+                    else:
+                        data = process_user_util_zero(
+                            user_list[time_idx][node],
+                            data_list[time_idx][node],
+                            tflops_list[time_idx][node],
+                            output_tflops=output_tflops,
+                        )
+                    # print('data',data)
+                    # pprint.pprint(data) #summarized TFlops per comma, user per node
+                    storage = divide_gpu_per_user(data)
+                    # print('data')
+                    # pprint.pprint(data) #summarized TFlops per individual user per node
+                    result_per_time[node] = storage
                 else:
-                    data = process_user_util_zero(
-                        user_list[time_idx][node],
-                        data_list[time_idx][node],
-                        tflops_list[time_idx][node],
-                        output_tflops=output_tflops,
+                    print(
+                        time_idx,
+                        "process_gpu_per_node: cannot find flops",
+                        node,
                     )
-                # print('data',data)
-                # pprint.pprint(data) #summarized TFlops per comma, user per node
-                storage = divide_gpu_per_user(data)
-                # print('data')
-                # pprint.pprint(data) #summarized TFlops per individual user per node
-                result_per_time[node] = storage
-            else:
-                print('process_gpu_per_node: cannot find flops',node,'at time_idx',time_idx)
-                # print(user_list[i])
-                # print(flops_list[i])
+                    # print(user_list[i])
+                    # print(flops_list[i])
         result.append(result_per_time)
 
     return result
