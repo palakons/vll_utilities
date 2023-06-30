@@ -17,225 +17,16 @@
 <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
 
 <!-- Create a div where the graph will take place -->
+<H1>VLL Cluster</H1>
 <div id="my_dataviz_node_heatmap"></div>
-<div id="my_dataviz_main_user"></div>
-<div id="my_dataviz_gpu"></div>
-<div id="my_dataviz_flops"></div>
 <div id="test"></div>
 <script>
-    function cloak_name(name) {
-        return name
-        // return name[0] + '_'.repeat(name.length - 2) + name[name.length - 1]
-    }
-    function draw_stacked_chart(svg_id, y_label, csv_name) {
-        // set the dimensions and margins of the graph
-        var margin = { top: 60, right: 150, bottom: 50, left: 50 },
-            width = 860 - margin.left - margin.right,
-            height = 240 - margin.top - margin.bottom;
-
-        // append the svg object to the body of the page
-        var svg = d3.select("#" + svg_id)
-            .append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform",
-                "translate(" + margin.left + "," + margin.top + ")");
-
-        var borderPath = svg.append("rect")
-            .attr("x", - margin.left)
-            .attr("y", - margin.top)
-            .attr("height", height + margin.top + margin.bottom)
-            .attr("width", width + margin.left + margin.right)
-            .style("stroke", 'rgb(0,0,0)')
-            .style("fill", "none")
-            .style("stroke-width", 1);
-        // Parse the Data
-        d3.csv(csv_name, function (data) {
-            var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
-            // var format2 = d3.timeParse("%Y-%m-%d %H:%M:%S");
-
-            data.forEach(function (d) {
-                // console.log(format(d.time))
-                d.time = format(d.time);
-            });
-
-            // List of groups = header of the csv files
-            var keys = data.columns.slice(1)
-
-            // color palette
-            var color = d3.scaleOrdinal()
-                .domain(keys)
-                .range(d3.schemeCategory20);
-
-            //stack the data?
-            var stackedData = d3.stack()
-                .keys(keys)
-                (data)
-
-            //////////
-            // AXIS //
-            //////////
-
-            // Add X axis
-            var x = d3.scaleTime()
-                .domain(d3.extent(data, function (d) { return d.time; }))
-                .range([0, width]);
-            var xAxis = svg.append("g")
-                .attr("transform", "translate(0," + height + ")")
-                .call(d3.axisBottom(x).ticks(5))
-
-            // Add X axis label:
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("x", width)
-                .attr("y", height + 40)
-                .text("Time");
-
-            // Add Y axis label:
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("x", 0)
-                .attr("y", -20)
-                .text(y_label)
-                .attr("text-anchor", "start")
-            // Add Y axis
-            var y = d3.scaleLinear()
-                .domain(d3.extent(stackedData[stackedData.length - 1], function (d) { return d[1] * 1.2; }))
-                .range([height, 0]);
-            svg.append("g")
-                .call(d3.axisLeft(y).ticks(5))
-
-            //////////
-            // BRUSHING AND CHART //
-            //////////
-
-            // Add a clipPath: everything out of this area won't be drawn.
-            var clip = svg.append("defs").append("svg:clipPath")
-                .attr("id", "clip_" + svg_id)
-                .append("svg:rect")
-                .attr("width", width)
-                .attr("height", height)
-                .attr("x", 0)
-                .attr("y", 0);
-
-            // Add brushing
-            var brush = d3.brushX()                 // Add the brush feature using the d3.brush function
-                .extent([[0, 0], [width, height]]) // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
-                .on("end", updateChart) // Each time the brush selection changes, trigger the 'updateChart' function
-
-            // Create the scatter variable: where both the circles and the brush take place
-            var areaChart = svg.append('g')
-                .attr("clip-path", "url(#clip_" + svg_id + ")")
-
-            // Area generator
-            var area = d3.area()
-                .x(function (d) { return x(d.data.time); })
-                .y0(function (d) { return y(d[0]); })
-                .y1(function (d) { return y(d[1]); })
-
-            // Show the areas
-            areaChart
-                .selectAll("mylayers")
-                .data(stackedData)
-                .enter()
-                .append("path")
-                .attr("class", function (d) { return "myArea" + svg_id + " " + d.key + svg_id })
-                .style("fill", function (d) { return color(d.key); })
-                .attr("d", area)
-
-            // Add the brushing
-            areaChart
-                .append("g")
-                .attr("class", "brush")
-                .call(brush);
-
-            var idleTimeout
-            function idled() { idleTimeout = null; }
-
-            // A function that update the chart for given boundaries
-            function updateChart() {
-
-                extent = d3.event.selection
-
-                // If no selection, back to initial coordinate. Otherwise, update X axis domain
-                if (!extent) {
-                    if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
-                    x.domain(d3.extent(data, function (d) { return d.time; }))
-                } else {
-                    x.domain([x.invert(extent[0]), x.invert(extent[1])])
-                    areaChart.select(".brush").call(brush.move, null) // This remove the grey brush area as soon as the selection has been done
-                }
-
-                // Update axis and area position
-                xAxis.transition().duration(1000).call(d3.axisBottom(x).ticks(5))
-                areaChart
-                    .selectAll("path")
-                    .transition().duration(1000)
-                    .attr("d", area)
-            }
-
-            //////////
-            // HIGHLIGHT GROUP //
-            //////////
-
-            // What to do when one group is hovered
-            var highlight = function (d) {
-                // console.log(d)
-                // reduce opacity of all groups
-                d3.selectAll(".myArea" + svg_id).style("opacity", .1)
-                // expect the one that is hovered
-                d3.select("." + d + svg_id).style("opacity", 1)
-            }
-
-            // And when it is not hovered anymore
-            var noHighlight = function (d) {
-                d3.selectAll(".myArea" + svg_id).style("opacity", 1)
-            }
-
-            //////////
-            // LEGEND //
-            //////////
-
-            // Add one dot in the legend for each name.
-            var size = 7
-            svg.selectAll("myrect")
-                .data(keys)
-                .enter()
-                .append("rect")
-                .attr("x", width + margin.left - 30)
-                .attr("y", function (d, i) { return - 40 + i * (size + 5) }) // 100 is where the first dot appears. 25 is the distance between dots
-                .attr("width", size)
-                .attr("height", size)
-                .style("fill", function (d) { return color(d) })
-                .on("mouseover", highlight)
-                .on("mouseleave", noHighlight)
-
-            // Add one dot in the legend for each name.
-            svg.selectAll("mylabels")
-                .data(keys)
-                .enter()
-                .append("text")
-                .attr("x", width + margin.left - 30 + size * 1.2)
-                .attr("y", function (d, i) { return - 40 + i * (size + 5) + (size / 2) }) // 100 is where the first dot appears. 25 is the distance between dots
-                .style("fill", function (d) { return color(d) })
-                .text(function (d) { return cloak_name(d) })
-                .attr("text-anchor", "left")
-                .style("alignment-baseline", "middle")
-                .style("font-family", '"Lucida Console", "Courier New", monospace')
-                .style('font-size', 'small')
-                .on("mouseover", highlight)
-                .on("mouseleave", noHighlight)
-
-        })
-    }
-
     function draw_gpu_heatmap(svg_id, csv_name) {
 
         // set the dimensions and margins of the graph
         var margin = { top: 30, right: 30, bottom: 30, left: 50 },
             width = 660 + 80 - margin.left - margin.right,
-            height = 650 - margin.top - margin.bottom;
+            height = 400 + 650 - margin.top - margin.bottom;
 
         // append the svg object to the body of the page
         var svg = d3.select("#" + svg_id)
@@ -255,358 +46,222 @@
             .style("fill", "none")
             .style("stroke-width", 1);
         //Read the data
-        d3.csv(csv_name, function (data) {
-            var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
+        d3.csv(csv_name,
+            function (data) {
+                // var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
+                var parse_epoch = d3.timeParse("%s");
+                // var format = d3.timeFormat("%s");
 
-            data.forEach(function (d) {
-                d.time = format(d.time);
-                d.value = parseFloat(d.value);
-            });
+                data.forEach(function (d) {
+                    d.utc = parse_epoch(d.utc.split('.')[0]);
+                    //adjust time to local time
+                    // console.log(d.utc.getTimezoneOffset())
+                    d.utc = new Date(d.utc.getTime() - d.utc.getTimezoneOffset() * 60000)
 
-            xExtents = d3.extent(data, function (d) { return d.time; })
-            var x = d3.scaleTime()
-                .range([0, width])
-                .domain(xExtents)
+                    d.gpu_util = parseFloat(d.gpu_util);
+                    d.node_gpu = d.node + "g" + d.gpu_order;
+                });
 
-            yExtents = d3.set(data.map(function (d) { return d.node_gpu; })).values()
+                xExtents = d3.extent(data, function (d) { return d.utc; })
+                //add 30 mins to extent
+                xExtents[1] = new Date(xExtents[1].getTime() + 30 * 60000)
+                var x = d3.scaleTime()
+                    .range([0, width])
+                    .domain(xExtents)
 
-            var y = d3.scaleBand()
-                .range([height, 0])
-                .domain(yExtents)
-
-            v_extent = d3.extent(data, function (d) { if (isNaN(d.value)) return 0; else return d.value })
-            var myColor = d3.scaleLinear()
-                .range(["lightgreen", "darkred"])
-                .domain(v_extent)
-
-
-            // create a tooltip=
-            var tooltip = d3.select("#" + svg_id)
-                .append("div")
-                .style("opacity", 0)
-                .attr("class", "tooltip")
-                .style("background-color", "white")
-                .style("border", "solid")
-                .style("border-width", "2px")
-                .style("border-radius", "5px")
-                .style("padding", "5px")
-                .style("position", "absolute")
-
-            // Three function that change the tooltip when user hover / move / leave a cell
-            var mouseover = function (d) {
-                tooltip.style("opacity", 1)
-            }
-            var mousemove = function (d) {
-                tooltip
-                    .html("Utilization status on " + d.time.toLocaleString() + "</br>" + d.node_gpu + ": " + ((isNaN(d.value)) ? "offline" : d.value.toFixed(0) + '%'))
-                    .style("left", (d3.mouse(this)[0] + 70) + "px")
-                    .style("top", (d3.mouse(this)[1]) + "px")
-            }
-            var mouseleave = function (d) {
-                tooltip.style("opacity", 0)
-            }
-
-            unique_x = d3.set(data.map(function (d) { return d.time; })).values().map(function (d) { return new Date(d); }).sort(d3.ascending)
-
-            var xAxis = svg.append("g")
-                .attr("transform", "translate(0," + height + ")")
-                .call(d3.axisBottom(x).ticks(5));
-            svg.append("g")
-                .call(d3.axisLeft(y)
-                    .tickValues(y.domain().filter(function (d, i) { return !(i % 4) })));
-
-            var clip = svg.append("defs").append("svg:clipPath")
-                .attr("id", "clip_" + svg_id)
-                .append("svg:rect")
-                .attr("width", width)
-                .attr("height", height)
-                .attr("x", 0)
-                .attr("y", 0);
-
-            var brush = d3.brushX()                 // Add the brush feature using the d3.brush function
-                .extent([[0, 0], [width, height]]) // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
-                .on("end", updateChart) // Each time the brush selection changes, trigger the 'updateChart' function
-
-            var areaChart = svg.append('g')
-                .attr("clip-path", "url(#clip_" + svg_id + ")")
-
-            areaChart.selectAll()
-                .data(data, function (d) { return d.time + ':' + d.node_gpu; })
-                .enter()
-                .append("rect")
-                .attr("x", function (d) { return x(d.time) })
-                .attr("y", function (d) {
-                    if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
-                    return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
-                })
-                .attr("width", width / unique_x.length * 1.05)
-                .attr("height", function (d) {
-                    if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
-                    // console.log(y.bandwidth(),h , v_extent[1])
-                    return y.bandwidth() * h / v_extent[1]
-                })
-                .style("fill", function (d) { if (isNaN(d.value)) return 'Gainsboro'; else return myColor(d.value) })
-                .on("mouseover", mouseover)
-                .on("mousemove", mousemove)
-                .on("mouseleave", mouseleave)
+                yExtents = d3.set(data.map(function (d) { if (d.node.length == 2) return "v0" + d.node_gpu.substring(1); else return "v" + d.node_gpu.substring(1); })).values()
+                yExtents = yExtents.sort(d3.ascending)
+                yExtents = yExtents.map(function (d) { if (d.charAt(1) == "0") return "v" + d.substring(2); else return "v" + d.substring(1); })
 
 
+                console.log(yExtents)
+                var y = d3.scaleBand()
+                    .range([height, 0])
+                    .domain(yExtents)
 
-            // areaChart
-            //     .append("g")
-            //     .attr("class", "brush")
-            //     .call(brush)
+                v_extent = d3.extent(data, function (d) { if (isNaN(d.gpu_util)) return 0; else return d.gpu_util })
+                var myColor = d3.scaleLinear()
+                    .range(["lightgreen", "darkred"])
+                    .domain(v_extent)
 
-            var idleTimeout
-            function idled() { idleTimeout = null; }
 
-            // A function that update the chart for given boundaries
-            function updateChart() {
+                // create a tooltip=
+                var tooltip = d3.select("#" + svg_id)
+                    .append("div")
+                    .style("opacity", 0)
+                    .attr("class", "tooltip")
+                    .style("background-color", "white")
+                    .style("border", "solid")
+                    .style("border-width", "2px")
+                    .style("border-radius", "5px")
+                    .style("padding", "5px")
+                    .style("position", "absolute")
 
-                extent = d3.event.selection
-
-                // If no selection, back to initial coordinate. Otherwise, update X axis domain
-                // console.log('updateChart!', x.domain(),)
-                if (!extent) {
-                    if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
-                    x.domain(d3.extent(data, function (d) { return d.time; }))
-                } else {
-                    x.domain([x.invert(extent[0]), x.invert(extent[1])])
-                    areaChart.select(".brush").call(brush.move, null) // This remove the grey brush area as soon as the selection has been done
+                // // Three function that change the tooltip when user hover / move / leave a cell
+                var mouseover = function (d) {
+                    tooltip.style("opacity", 1)
                 }
-                factor = (unique_x[unique_x.length - 1] - unique_x[0]) / (x.domain()[1] - x.domain()[0])
-                // Update axis and area position
+                var mousemove = function (d) {
 
-                xAxis.transition().duration(1000).call(d3.axisBottom(x).ticks(5))
 
-                // console.log('unique_x.length', unique_x.length, width, factor, width / unique_x.length * factor)
-
-                areaChart.selectAll("rect")
-                    .transition().duration(1000)
-
-                    .attr("x", function (d) { return x(d.time); })
-                    .attr("y", function (d) {
-                        if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
-                        return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
-                    })
-                // .attr("width", width / unique_x.length *  factor)
-
-                // areaChart.selectAll("rect").attr("width", 100)
-            }
-
-        })
-    }
-
-    function draw_main_user(svg_id, csv_name) {
-
-        // set the dimensions and margins of the graph
-        var margin = { top: 30, right: 150, bottom: 30, left: 50 },
-            width = 860 - margin.left - margin.right,
-            height = 250 - margin.top - margin.bottom;
-
-        // append the svg object to the body of the page
-        var svg = d3.select("#" + svg_id)
-            .append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform",
-                "translate(" + margin.left + "," + margin.top + ")");
-
-        var borderPath = svg.append("rect")
-            .attr("x", - margin.left)
-            .attr("y", - margin.top)
-            .attr("height", height + margin.top + margin.bottom)
-            .attr("width", width + margin.left + margin.right)
-            .style("stroke", 'rgb(0,0,0)')
-            .style("fill", "none")
-            .style("stroke-width", 1);
-        svg.append("text")
-            .attr("text-anchor", "end")
-            .attr("x", 0)
-            .attr("y", -10)
-            .text("Main user on each node")
-            .attr("text-anchor", "start")
-        //Read the data
-        d3.csv(csv_name, function (data) {
-            var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
-
-            data.forEach(function (d) {
-                d.time = format(d.time);
-                txt = d.all_user.replaceAll("'", '"')
-                // console.log(d.all_user,txt)
-                d.all_user = JSON.parse(txt);
-                // console.log(d.all_user);
-            });
-
-            xExtents = d3.extent(data, function (d) { return d.time; })
-            var x = d3.scaleTime()
-                .range([0, width])
-                .domain(xExtents)
-
-            yExtents = d3.set(data.map(function (d) { return d.node; })).values().sort(d3.ascending)
-
-            var y = d3.scaleBand()
-                .range([height, 0])
-                .domain(yExtents)
-
-            users = d3.set(data.map(function (d) { return d.user; })).values().sort(d3.ascending)
-
-            var color = d3.scaleOrdinal()
-                .domain(users)
-                .range(d3.schemeCategory20);
-
-            // create a tooltip
-            var tooltip = d3.select("#" + svg_id)
-                .append("div")
-                .style("opacity", 0)
-                .attr("class", "tooltip")
-                .style("background-color", "white")
-                .style("border", "solid")
-                .style("border-width", "2px")
-                .style("border-radius", "5px")
-                .style("padding", "5px")
-                .style("position", "absolute")
-
-            // Three function that change the tooltip when user hover / move / leave a cell
-            var mouseover = function (d) {
-                tooltip.style("opacity", 1)
-            }
-            var mousemove = function (d) {
-
-                // console.log(d3.keys(d.all_user),d3.values(d.all_user));
-
-                table = "<table border=1 margin=1><thead><th>User</th><th>TFlops</th></thead>"
-                for (var key in d.all_user) {
-                    // check if the property/key is defined in the object itself, not in parent
-                    if (d.all_user.hasOwnProperty(key)) {
-                        table += "<tr><td>" + key + "</td><td align=center>" + parseFloat(d.all_user[key]).toFixed(2) + "</td></tr>"
+                    //make ..."days ago" or "hours ago" or "minutes ago" or "seconds ago"
+                    // console.log(d.utc, new Date())
+                    time_diff = new Date() - d.utc
+                    if (time_diff > 86400000) {
+                        time_diff_text = Math.floor(time_diff / 86400000) + " days ago"
                     }
+                    else if (time_diff > 3600000) {
+                        time_diff_text = Math.floor(time_diff / 3600000) + " hours ago"
+                    }
+                    else if (time_diff > 60000) {
+                        time_diff_text = Math.floor(time_diff / 60000) + " minutes ago"
+                    }
+                    else {
+                        time_diff_text = Math.floor(time_diff / 1000) + " seconds ago"
+                    }
+                    html_body = "<h3>" + d.node + "g" + d.gpu_order + "</h3 > "
+                    html_body += "Status on " + d.utc.toLocaleString() + " (" + time_diff_text + ")"
+                    html_body += "</br>Utilization: <b>GPU</b>: " + d.gpu_util.toFixed(1) + "% | <b>GPU Memory</b>: " + parseFloat(d.mem_util).toFixed(1) + "%"
+                    //add d.product_name as GPU Model, d.uuid as "GPU ID"
+                    html_body += "</br><b>GPU Model</b>: " + d.product_name
+                    html_body += "</br><b>GPU ID</b>: " + d.uuid
+                    //loop through d.proc_info.split('-')
+                    if (d.proc_info != "") {
+                        html_body += "</br><b>Processes:</b>"
+                        html_body += "<table border=1 margin=1><thead><th>PID</th><th>User</th></thead>"
+                        for (var i = 0; i < d.proc_info.split('-').length; i++) {
+                            // console.log(d.proc_info.split('-')[i])
+                            pid = d.proc_info.split('-')[i].split(':')[0]
+                            user = d.proc_info.split('-')[i].split(':')[1]
+                            html_body += "<tr><td>" + pid + "</td><td>" + user + "</tr>"
+                        }
+                        html_body += "</table>"
+                    }
+
+
+
+                    tooltip
+                        .html(html_body)
+                        .style("left", (d3.mouse(this)[0] + 70) + "px")
+                        .style("top", (d3.mouse(this)[1]) + "px")
                 }
-                table += "</table>"
-                html = tooltip
-                    .html(d.time.toLocaleString() + "</br>Main user on " + d.node + " is <b>" + d.user + "</b></br>TFlops distribution: " + table)
-                    .style("left", (d3.mouse(this)[0] + 70) + "px")
-                    .style("top", (d3.mouse(this)[1] + 650) + "px")
-            }
-            var mouseleave = function (d) {
-                tooltip.style("opacity", 0)
-            }
-
-            unique_x = d3.set(data.map(function (d) { return d.time; })).values().map(function (d) { return new Date(d); })
-
-            var xAxis = svg.append("g")
-                .attr("transform", "translate(0," + height + ")")
-                .call(d3.axisBottom(x).ticks(5));
-            svg.append("g")
-                .call(d3.axisLeft(y)
-                );
-
-            var clip = svg.append("defs").append("svg:clipPath")
-                .attr("id", "clip_" + svg_id)
-                .append("svg:rect")
-                .attr("width", width)
-                .attr("height", height)
-                .attr("x", 0)
-                .attr("y", 0);
-
-            var brush = d3.brushX()                 // Add the brush feature using the d3.brush function
-                .extent([[0, 0], [width, height]]) // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
-                .on("end", updateChart) // Each time the brush selection changes, trigger the 'updateChart' function
-
-            var areaChart = svg.append('g')
-                .attr("clip-path", "url(#clip_" + svg_id + ")")
-
-            areaChart.selectAll()
-                .data(data, function (d) { return d.time + ':' + d.node; })
-                .enter()
-                .append("rect")
-                .attr("x", function (d) { return x(d.time) })
-                .attr("y", function (d) {
-                    return y(d.node)
-                })
-                .attr("width", width / unique_x.length * 1.05)
-                .attr("height", function (d) {
-                    return y.bandwidth()
-                })
-                .style("fill", function (d) { return color(d.user) })
-                .on("mouseover", mouseover)
-                .on("mousemove", mousemove)
-                .on("mouseleave", mouseleave)
-
-
-
-            // areaChart
-            //     .append("g")
-            //     .attr("class", "brush")
-            //     .call(brush)
-
-            var idleTimeout
-            function idled() { idleTimeout = null; }
-
-            // A function that update the chart for given boundaries
-            function updateChart() {
-
-                extent = d3.event.selection
-
-                // If no selection, back to initial coordinate. Otherwise, update X axis domain
-                // console.log('updateChart!', x.domain(),)
-                if (!extent) {
-                    if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
-                    x.domain(d3.extent(data, function (d) { return d.time; }))
-                } else {
-                    x.domain([x.invert(extent[0]), x.invert(extent[1])])
-                    areaChart.select(".brush").call(brush.move, null) // This remove the grey brush area as soon as the selection has been done
+                var mouseleave = function (d) {
+                    tooltip.style("opacity", 0)
+                    tooltip.html("")
                 }
-                factor = (unique_x[unique_x.length - 1] - unique_x[0]) / (x.domain()[1] - x.domain()[0])
-                // Update axis and area position
 
-                xAxis.transition().duration(1000).call(d3.axisBottom(x).ticks(5))
+                // unique_x = d3.set(data.map(function (d) { return d.utc; })).values().map(function (d) { return new Date(d); }).sort(d3.ascending)
 
-                // console.log('unique_x.length', unique_x.length, width, factor, width / unique_x.length * factor)
+                var xAxis = svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x).ticks(10));
+                svg.append("g")
+                    .call(d3.axisLeft(y)
+                        .tickValues(y.domain().filter(function (d, i) { return !(i % 1) })));
 
-                areaChart.selectAll("rect")
-                    .transition().duration(1000)
+                // var clip = svg.append("defs").append("svg:clipPath")
+                //     .attr("id", "clip_" + svg_id)
+                //     .append("svg:rect")
+                //     .attr("width", width)
+                //     .attr("height", height)
+                //     .attr("x", 0)
+                //     .attr("y", 0);
 
-                    .attr("x", function (d) { return x(d.time); })
+                // var brush = d3.brushX()                 // Add the brush feature using the d3.brush function
+                //     .extent([[0, 0], [width, height]]) // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
+                //     .on("end", updateChart) // Each time the brush selection changes, trigger the 'updateChart' function
+
+                var areaChart = svg.append('g')
+                    .attr("clip-path", "url(#clip_" + svg_id + ")")
+                function getWidths(d, i) {
+                    // print length of d
+                    // console.log(data[i + 1].timestamp, data[i].timestamp, i
+                    // )
+                    // console.log(data[i + 1].utc, data[i].utc)
+                    // console.log(x(data[i + 1].utc), x(data[i].utc))
+                    // find the next data[i].utc that is different from data[i].utc
+                    for (var j = i + 1; j < data.length; j++) {
+                        if (data[j].utc.getTime() != data[i].utc.getTime()) {
+                            // console.log(data[j].utc, data[i].utc)
+                            return x(data[j].utc) - x(data[i].utc)
+                        }
+                    }
+                    return x(new Date(data[i].utc.getTime() + 30 * 60000)) - x(data[i].utc)
+                }
+                console.log(data.length)
+                areaChart.selectAll()
+                    .data(data)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function (d) { return x(d.utc) })
                     .attr("y", function (d) {
-                        if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
-                        return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
+                        return y(d.node_gpu)
+                        // if (isNaN(d.gpu_util)) h = v_extent[1]; else h = d.gpu_util;
+                        // return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
                     })
-                // .attr("width", width / unique_x.length *  factor)
+                    .attr("width", getWidths)
+                    .attr("height", function (d) {
+                        // if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
+                        // console.log(y.bandwidth(), h, v_extent[1])
+                        return y.bandwidth()
+                        // return y.bandwidth() * h / v_extent[1]
+                    })
+                    .style("fill", function (d) {
+                        if (isNaN(d.gpu_util)) return 'Gainsboro'; else {
+                            return myColor(d.gpu_util);
+                        }
+                    })
+                    .on("mouseover", mouseover)
+                    .on("mousemove", mousemove)
+                    .on("mouseleave", mouseleave)
 
-                // areaChart.selectAll("rect").attr("width", 100)
+
+
+                // areaChart
+                //     .append("g")
+                //     .attr("class", "brush")
+                //     .call(brush)
+
+                var idleTimeout
+                function idled() { idleTimeout = null; }
+
+                // A function that update the chart for given boundaries
+                function updateChart() {
+
+                    extent = d3.event.selection
+
+                    // If no selection, back to initial coordinate. Otherwise, update X axis domain
+                    // console.log('updateChart!', x.domain(),)
+                    if (!extent) {
+                        if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
+                        x.domain(d3.extent(data, function (d) { return d.time; }))
+                    } else {
+                        x.domain([x.invert(extent[0]), x.invert(extent[1])])
+                        areaChart.select(".brush").call(brush.move, null) // This remove the grey brush area as soon as the selection has been done
+                    }
+                    factor = (unique_x[unique_x.length - 1] - unique_x[0]) / (x.domain()[1] - x.domain()[0])
+                    // Update axis and area position
+
+                    xAxis.transition().duration(1000).call(d3.axisBottom(x).ticks(5))
+
+                    // console.log('unique_x.length', unique_x.length, width, factor, width / unique_x.length * factor)
+
+                    areaChart.selectAll("rect")
+                        .transition().duration(1000)
+
+                        .attr("x", function (d) { return x(d.time); })
+                        .attr("y", function (d) {
+                            if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
+                            return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
+                        })
+                    // .attr("width", width / unique_x.length *  factor)
+
+                    // areaChart.selectAll("rect").attr("width", 100)
+                }
+
             }
-            var size = 7
-            svg.selectAll("myrect")
-                .data(users)
-                .enter()
-                .append("rect")
-                .attr("x", width + margin.left - 30)
-                .attr("y", function (d, i) { return 0 + i * (size + 5) }) // 100 is where the first dot appears. 25 is the distance between dots
-                .attr("width", size)
-                .attr("height", size)
-                .style("fill", function (d) { return color(d) })
-
-            // Add one dot in the legend for each name.
-            svg.selectAll("mylabels_" + svg_id)
-                .data(users)
-                .enter()
-                .append("text")
-                .attr("x", width + margin.left - 30 + size * 1.2)
-                .attr("y", function (d, i) { return 0 + i * (size + 5) + (size / 2) }) // 100 is where the first dot appears. 25 is the distance between dots
-                .style("fill", function (d) { return color(d) })
-                .text(function (d) { return cloak_name(d) })
-                .attr("text-anchor", "left")
-                .style("alignment-baseline", "middle")
-                .style("font-family", '"Lucida Console", "Courier New", monospace')
-                .style('font-size', 'small')
-
-        })
+        )
     }
 
-    draw_stacked_chart('my_dataviz_gpu', "# of GPU Utilized", "track_gpu_whole.csv")
-    draw_stacked_chart('my_dataviz_flops', "TFlops Utilized", "track_tflops.csv")
-    draw_gpu_heatmap('my_dataviz_node_heatmap', "track_heatmap.csv")
-    draw_main_user('my_dataviz_main_user', "track_main_user_per_node.csv")
+    draw_gpu_heatmap('my_dataviz_node_heatmap', "vll_cluster_utilization.csv")
 </script>
