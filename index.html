@@ -364,7 +364,7 @@
                     }
                     html_body = "<h3>" + d.node + "</h3 > "
                     html_body += "Local time: " + d.utc.toLocaleString() + " (" + time_diff_text + ")"
-                    html_body += "</br>Utilization: <b>" + d.dir + "</b>: " + d.percent.toFixed(1) + "%"
+                    html_body += "</br>Utilization: <b>" + d.dir + "</b>: " + d.percent.toFixed(1) + "% used of " + (parseFloat(d.total) / 1024 / 1024 / 1024 / 1024).toFixed(2) + "TB"
 
                     // console.log(html_body)
                     // console.log(d3.mouse(this)[0])
@@ -435,7 +435,7 @@
 
 
                         for (var i = total_disk.length - 1; i >= 0; i--) {
-                            if ((d.dir.startsWith("/home") || d.dir.startsWith("/data")) && (d.dir.endsWith(total_disk[i]))) {
+                            if (d.dir == "/home" + total_disk[i] || d.dir == "/data" + total_disk[i]) {
                                 return x(d.utc) + i * width_cell / total_disk.length
                             }
                         }
