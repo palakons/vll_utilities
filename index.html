@@ -20,6 +20,9 @@
 <H1>VLL Cluster</H1>
 <div id="gpu_heatmap"></div>
 <div id="disk_heatmap"></div>
+<svg width="0" height="0">
+    <defs id="gradient-div"></defs>
+</svg>
 <script>
     function getOffset(el) {
         const rect = el.getBoundingClientRect();
@@ -55,6 +58,37 @@
         //Read the data
         d3.csv(csv_name,
             function (data) {
+                // #split by "-"
+
+                function process_proc(proc_str) {
+                    //  pid:uname
+
+                    if (proc_str == "") {
+                        return []
+                    }
+                    output = []
+                    for (j = 0; j < proc_str.split("-").length; j++) {
+                        temp = proc_str.split("-")[j].split(":")
+
+                        output.push({ pid: parseInt(temp[0]), uname: temp[1] })
+
+                    }
+                    return output
+                }
+
+                unique_names = []
+                for (i = 0; i < data.length; i++) {
+                    proc_str = data[i].proc_info
+                    unique_names = unique_names.concat(process_proc(proc_str))
+                }
+                unique_names = d3.set(unique_names, function (d) { return d.uname }).values()
+                console.log(unique_names)
+
+                var name_color = d3.scaleOrdinal()
+                    .domain(unique_names)
+                    .range(d3.schemeCategory20);
+
+
                 // var format = d3.utcParse("%Y-%m-%d %H:%M:%S");
                 var parse_epoch = d3.timeParse("%s");
                 // var format = d3.timeFormat("%s");
@@ -133,12 +167,13 @@
                     else {
                         time_diff_text = Math.floor(time_diff / 1000) + " seconds ago"
                     }
-                    html_body = "<h3>" + d.node + "g" + d.gpu_order + "</h3 > "
-                    html_body += "Local time: " + d.utc.toLocaleString() + " (" + time_diff_text + ")"
-                    html_body += "</br>Utilization: <b>GPU</b>: " + d.gpu_util.toFixed(1) + "% | <b>GPU Memory</b>: " + parseFloat(d.mem_util).toFixed(1) + "%"
+                    html_body = "<h3>" + d.node + "g" + d.gpu_order + ": " + d.product_name.replace("RTX", "").replace("NVIDIA", "").replace("GeForce", "").trim() + "</h3 > "
+                    html_body += d.uuid
+                    html_body += "</br>" + d.utc.toLocaleString() + " (" + time_diff_text + ")"
+                    html_body += "</br><b>GPU</b>: " + d.gpu_util.toFixed(1) + "%<br><b>GPU Memory</b>: " + parseFloat(d.mem_util).toFixed(1) + "%"
                     //add d.product_name as GPU Model, d.uuid as "GPU ID"
-                    html_body += "</br><b>GPU Model</b>: " + d.product_name
-                    html_body += "</br>/ " + d.uuid
+
+                    // html_body += "</br><b>GPU Model</b>: " +  d.product_name.replace("RTX", "").replace("NVIDIA","").replace("GeForce","").trim()
                     //loop through d.proc_info.split('-')
                     if (d.proc_info != "") {
                         html_body += "</br><b>Processes:</b>"
@@ -147,8 +182,12 @@
                             // console.log(d.proc_info.split('-')[i])
                             pid = d.proc_info.split('-')[i].split(':')[0]
                             user = d.proc_info.split('-')[i].split(':')[1]
-                            html_body += "<tr><td>" + pid + "</td><td>" + user + "</tr>"
+                            html_body += "<tr><td>" + pid + "</td><td><span style='border-radius: 5px; background:" + name_color(user) + "''>" + user + "</span></tr>"
                         }
+
+                        //make a span color
+
+
                         html_body += "</table>"
                     }
 
@@ -205,7 +244,10 @@
                 areaChart.selectAll()
                     .data(data)
                     .enter()
-                    .append("rect")
+                    .append("rect").filter(function (d) {
+                        pid_uname = process_proc(d.proc_info);
+                        return pid_uname.length <= 1
+                    })
                     .attr("x", function (d) { return x(d.utc) })
                     .attr("y", function (d) {
                         return y(d.node_gpu)
@@ -220,13 +262,81 @@
                         // return y.bandwidth() * h / v_extent[1]
                     })
                     .style("fill", function (d) {
-                        if (isNaN(d.gpu_util)) return 'Gainsboro'; else {
+                        pid_uname = process_proc(d.proc_info)
+                        if (isNaN(d.gpu_util) || pid_uname.length == 0) return 'Gainsboro'; else {
+
+
+                            return name_color(pid_uname[0].uname);
+
+
                             return myColor(d.gpu_util);
                         }
                     })
                     .on("mouseover", mouseover)
                     .on("mousemove", mousemove)
                     .on("mouseleave", mouseleave)
+
+
+                areaChart.selectAll()
+                    .data(data)
+                    .enter()
+                    .append("rect").filter(function (d) {
+                        pid_uname = process_proc(d.proc_info);
+                        return pid_uname.length > 1
+                    })
+                    .attr("x", function (d) { return x(d.utc) })
+                    .attr("y", function (d) {
+                        return y(d.node_gpu)
+                        // if (isNaN(d.gpu_util)) h = v_extent[1]; else h = d.gpu_util;
+                        // return y(d.node_gpu) + y.bandwidth() * (1 - h / v_extent[1])
+                    })
+                    .attr("width", getWidths)
+                    .attr("height", function (d) {
+                        // if (isNaN(d.value)) h = v_extent[1]; else h = d.value;
+                        // console.log(y.bandwidth(), h, v_extent[1])
+                        return y.bandwidth()
+                        // return y.bandwidth() * h / v_extent[1]
+                    })
+                    .on("mouseover", mouseover)
+                    .on("mousemove", mousemove)
+                    .on("mouseleave", mouseleave)
+                    .style("fill",
+
+                        function (d) {
+                            pid_uname = process_proc(d.proc_info)
+                            //list comprehension
+                            var name_name = pid_uname.map(function (d) { return d.uname; }).join("-");
+
+                            //get d3 body
+                            if (d3.select("#svgGradient" + name_name).empty()) {
+                                var gradient = d3.select("#gradient-div").append("linearGradient")
+                                    .attr("id", "svgGradient" + name_name)
+                                    .attr("x1", "0%")
+                                    .attr("x2", "100%")
+                                    .attr("y1", "0%")
+                                    .attr("y2", "100%");
+                                
+                                //go through pid_name
+                                for (var i = 0; i < pid_uname.length; i++) {
+                                    gradient.append("stop")
+                                        .attr('class', 'start')
+                                        .attr("offset", i * 100 / pid_uname.length + "%")
+                                        .attr("stop-color", name_color(pid_uname[i].uname))
+                                        .attr("stop-opacity", 1);
+                                    gradient.append("stop")
+                                        .attr('class', 'end')
+                                        .attr("offset", (i + 1) * 100 / pid_uname.length + "%")
+                                        .attr("stop-color", name_color(pid_uname[i].uname))
+                                        .attr("stop-opacity", 1);
+                                }
+                            }
+
+                            return "url(#svgGradient" + name_name + ")";
+                        }
+
+                    )
+
+
 
 
 
@@ -303,6 +413,7 @@
         //Read the data
         d3.csv(csv_name,
             function (data) {
+
                 var parse_epoch = d3.timeParse("%s");
 
                 data.forEach(function (d) {
